@@ -2,20 +2,25 @@
 import React, { useState, useMemo } from 'react';
 import { AuthContext } from './authContextInstance';
 import {
-  getUserData,
+  getCurrentUserData,
   saveUserData,
-  getInitialEmptyUserData,
-  calculateUserMetrics,
-  addVendorToUserData,
-  addProcurementToUserData,
-  addSubscriptionToUserData,
-} from '../data/userData';
+  createEmptyDataset,
+  calculateMetrics,
+  addVendor,
+  addProcurementRequest,
+  addSubscription,
+  addInvoice,
+  loadDemoData,
+  clearProcurementData,
+} from '../services/dataService';
 
 const REGISTERED_USERS_KEY = 'procuremind_registered_users';
-const CURRENT_USER_KEY = 'procuremind_current_user';
-const LOGGED_IN_KEY = 'procuremind_logged_in';
+const CURRENT_USER_KEY     = 'procuremind_current_user';
+const LOGGED_IN_KEY        = 'procuremind_logged_in';
 
-// Pre-seeded demo account for NovaTech Industries
+// ─────────────────────────────────────────────────────────────────────────────
+// Pre-seeded demo account
+// ─────────────────────────────────────────────────────────────────────────────
 const DEFAULT_DEMO_USER = {
   id: 'demo-user-novatech',
   username: 'demo',
@@ -32,8 +37,12 @@ const DEFAULT_DEMO_USER = {
   isDemo: true,
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AuthProvider
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function AuthProvider({ children }) {
-  // Initialize registered users list in localStorage
+  // Initialize registered user list in localStorage
   const [users, setUsers] = useState(() => {
     try {
       const stored = localStorage.getItem(REGISTERED_USERS_KEY);
@@ -47,164 +56,142 @@ export function AuthProvider({ children }) {
           return parsed;
         }
       }
-    } catch (err) {
-      console.error('Error loading users from localStorage', err);
-    }
-    const initialList = [DEFAULT_DEMO_USER];
-    try {
-      localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(initialList));
     } catch {}
+    const initialList = [DEFAULT_DEMO_USER];
+    try { localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(initialList)); } catch {}
     return initialList;
   });
 
-  // Current logged in user session
+  // Current session
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const stored = localStorage.getItem(CURRENT_USER_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed && parsed.id) {
-          return parsed;
-        }
+        if (parsed && parsed.id) return parsed;
       }
-      if (localStorage.getItem(LOGGED_IN_KEY) === 'true') {
-        return DEFAULT_DEMO_USER;
-      }
-    } catch (err) {
-      console.error('Error loading current user', err);
-    }
+      if (localStorage.getItem(LOGGED_IN_KEY) === 'true') return DEFAULT_DEMO_USER;
+    } catch {}
     return null;
   });
 
   // Current user's isolated procurement dataset
   const [userData, setUserData] = useState(() => {
-    if (currentUser) {
-      return getUserData(currentUser.id, currentUser.isDemo, currentUser.companyName);
+    if (!currentUser) return null;
+    if (currentUser.isDemo) {
+      // Demo account: load demo data on first access
+      const stored = getCurrentUserData(currentUser.id);
+      if (!stored || !stored.isDemoData) {
+        return loadDemoData(currentUser.id, currentUser.companyName);
+      }
+      return stored;
     }
-    return null;
+    return getCurrentUserData(currentUser.id);
   });
 
-  // Dynamically derived live metrics from current userData
-  const metrics = useMemo(() => {
-    return calculateUserMetrics(userData);
-  }, [userData]);
+  // Live metrics — recomputed whenever userData changes
+  const metrics = useMemo(() => calculateMetrics(userData), [userData]);
 
-  const refreshData = () => {
-    if (currentUser) {
-      const data = getUserData(currentUser.id, currentUser.isDemo, currentUser.companyName);
-      setUserData(data);
-    }
-  };
+  // ── Internal helpers ────────────────────────────────────────────────────────
 
-  /**
-   * Log in user by username/email and password.
-   */
-  const login = (usernameOrEmail, password) => {
-    const cleanInput = usernameOrEmail.trim().toLowerCase();
-
-    let latestUsers = users;
-    try {
-      const stored = localStorage.getItem(REGISTERED_USERS_KEY);
-      if (stored) {
-        latestUsers = JSON.parse(stored);
-      }
-    } catch {}
-
-    const matchedUser = latestUsers.find(
-      (u) =>
-        (u.username?.toLowerCase() === cleanInput || u.email?.toLowerCase() === cleanInput) &&
-        u.password === password
-    );
-
-    if (!matchedUser) {
-      return { success: false, error: 'Invalid username or password.' };
-    }
-
-    const safeUser = { ...matchedUser };
-    delete safeUser.password;
-
+  function _setAndPersistUser(safeUser) {
     try {
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(safeUser));
       localStorage.setItem(LOGGED_IN_KEY, 'true');
     } catch {}
-
-    const loadedData = getUserData(safeUser.id, safeUser.isDemo, safeUser.companyName);
     setCurrentUser(safeUser);
-    setUserData(loadedData);
+  }
+
+  function _syncUserData(userId, isDemo) {
+    if (isDemo) {
+      const stored = getCurrentUserData(userId);
+      if (!stored || !stored.isDemoData) {
+        const demo = loadDemoData(userId);
+        setUserData(demo);
+        return demo;
+      }
+      setUserData(stored);
+      return stored;
+    }
+    const data = getCurrentUserData(userId);
+    setUserData(data);
+    return data;
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────────
+
+  /** Log in by username/email + password. */
+  const login = (usernameOrEmail, password) => {
+    const clean = usernameOrEmail.trim().toLowerCase();
+    let latestUsers = users;
+    try {
+      const stored = localStorage.getItem(REGISTERED_USERS_KEY);
+      if (stored) latestUsers = JSON.parse(stored);
+    } catch {}
+
+    const matched = latestUsers.find(
+      (u) =>
+        (u.username?.toLowerCase() === clean || u.email?.toLowerCase() === clean) &&
+        u.password === password
+    );
+    if (!matched) return { success: false, error: 'Invalid username or password.' };
+
+    const safeUser = { ...matched };
+    delete safeUser.password;
+    _setAndPersistUser(safeUser);
+    _syncUserData(safeUser.id, safeUser.isDemo);
 
     return { success: true, user: safeUser };
   };
 
-  /**
-   * Register a new user with fresh EMPTY data.
-   */
+  /** Register a new user with completely EMPTY data. */
   const register = (registrationData) => {
     const {
-      fullName,
-      username,
-      password,
-      email,
-      companyName,
-      jobRole,
-      department,
-      companyDescription,
-      workDescription,
-      procurementTypes,
+      fullName, username, password, email, companyName,
+      jobRole, department, companyDescription, workDescription, procurementTypes,
     } = registrationData;
 
     const cleanUsername = username.trim().toLowerCase();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail    = email.trim().toLowerCase();
 
-    if (users.some((u) => u.username?.toLowerCase() === cleanUsername)) {
+    if (users.some((u) => u.username?.toLowerCase() === cleanUsername))
       return { success: false, error: 'Username is already taken. Please choose another.' };
-    }
-    if (users.some((u) => u.email?.toLowerCase() === cleanEmail)) {
+    if (users.some((u) => u.email?.toLowerCase() === cleanEmail))
       return { success: false, error: 'An account with this email already exists.' };
-    }
 
     const newUser = {
       id: `usr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      fullName: fullName.trim(),
-      username: username.trim(),
-      email: cleanEmail,
+      fullName:           fullName.trim(),
+      username:           username.trim(),
+      email:              cleanEmail,
       password,
-      companyName: companyName.trim(),
-      jobRole: jobRole.trim(),
-      department: department.trim(),
+      companyName:        companyName.trim(),
+      jobRole:            jobRole.trim(),
+      department:         department.trim(),
       companyDescription: companyDescription.trim(),
-      workDescription: workDescription.trim(),
-      procurementTypes: procurementTypes || 'General',
-      accountCreatedAt: new Date().toISOString(),
-      isDemo: false,
+      workDescription:    workDescription.trim(),
+      procurementTypes:   procurementTypes || 'General',
+      accountCreatedAt:   new Date().toISOString(),
+      isDemo:             false,
     };
 
     const updatedUsers = [...users, newUser];
     setUsers(updatedUsers);
-    try {
-      localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(updatedUsers));
-    } catch {}
+    try { localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(updatedUsers)); } catch {}
 
-    // Initialize completely EMPTY dataset for the new account
-    const emptyDataset = getInitialEmptyUserData(newUser.id, newUser.companyName);
-    saveUserData(newUser.id, emptyDataset);
+    // Initialize EMPTY dataset — NEVER use demo data for new accounts
+    const emptyData = createEmptyDataset(newUser.id, newUser.companyName);
+    saveUserData(newUser.id, emptyData);
 
     const safeUser = { ...newUser };
     delete safeUser.password;
-
-    try {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(safeUser));
-      localStorage.setItem(LOGGED_IN_KEY, 'true');
-    } catch {}
-
-    setCurrentUser(safeUser);
-    setUserData(emptyDataset);
+    _setAndPersistUser(safeUser);
+    setUserData(emptyData);
 
     return { success: true, user: safeUser };
   };
 
-  /**
-   * Log out active user.
-   */
+  /** Log out — clears session, keeps account in localStorage. */
   const logout = () => {
     try {
       localStorage.removeItem(CURRENT_USER_KEY);
@@ -214,25 +201,49 @@ export function AuthProvider({ children }) {
     setUserData(null);
   };
 
-  /**
-   * Actions to add records to current user's dataset live
-   */
-  const addVendor = (vendor) => {
+  /** Refresh user data from localStorage (e.g. after external write). */
+  const refreshData = () => {
+    if (currentUser) _syncUserData(currentUser.id, currentUser.isDemo);
+  };
+
+  // ── Data mutation actions ───────────────────────────────────────────────────
+
+  const addVendorAction = (vendor) => {
     if (!currentUser) return;
-    const updated = addVendorToUserData(currentUser.id, vendor);
+    const updated = addVendor(currentUser.id, vendor);
     setUserData({ ...updated });
   };
 
-  const addProcurement = (req) => {
+  const addProcurementAction = (req) => {
     if (!currentUser) return;
-    const updated = addProcurementToUserData(currentUser.id, req);
+    const updated = addProcurementRequest(currentUser.id, req);
     setUserData({ ...updated });
   };
 
-  const addSubscription = (sub) => {
+  const addSubscriptionAction = (sub) => {
     if (!currentUser) return;
-    const updated = addSubscriptionToUserData(currentUser.id, sub);
+    const updated = addSubscription(currentUser.id, sub);
     setUserData({ ...updated });
+  };
+
+  const addInvoiceAction = (invoice) => {
+    if (!currentUser) return;
+    const updated = addInvoice(currentUser.id, invoice);
+    setUserData({ ...updated });
+  };
+
+  /** Load full NovaTech demo dataset into current user's account. */
+  const loadDemoDataAction = () => {
+    if (!currentUser) return;
+    const demo = loadDemoData(currentUser.id, currentUser.companyName);
+    setUserData({ ...demo });
+  };
+
+  /** Clear all procurement data, reset to zero state. */
+  const clearDataAction = () => {
+    if (!currentUser) return;
+    const empty = clearProcurementData(currentUser.id, currentUser.companyName);
+    setUserData({ ...empty });
   };
 
   const value = {
@@ -243,10 +254,14 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
-    addVendor,
-    addProcurement,
-    addSubscription,
     refreshData,
+    // Data mutations
+    addVendor:        addVendorAction,
+    addProcurement:   addProcurementAction,
+    addSubscription:  addSubscriptionAction,
+    addInvoice:       addInvoiceAction,
+    loadDemoData:     loadDemoDataAction,
+    clearData:        clearDataAction,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
