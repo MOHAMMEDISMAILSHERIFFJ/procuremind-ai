@@ -1,9 +1,10 @@
 // src/components/layout/Header.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { BellIcon, SparklesIcon, XCircleIcon } from '../icons/Icons';
-import { userProfile } from '../../data/procureMindData';
+import { useAuth } from '../../context/useAuth';
 
-export const Header = ({ onLogout }) => {
+export const Header = () => {
+  const { currentUser, logout } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -17,18 +18,32 @@ export const Header = ({ onLogout }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const getInitials = (name) => {
+    if (!name) return 'PM';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const fullName = currentUser?.fullName || 'Procurement Officer';
+  const companyName = currentUser?.companyName || 'Enterprise';
+  const jobRole = currentUser?.jobRole || 'Procurement Lead';
+  const email = currentUser?.email || '';
+
   return (
     <header className="top-header">
       <div className="header-greeting-container">
         <div className="header-title-row">
-          <h1 className="header-title">Good afternoon</h1>
+          <h1 className="header-title">Good afternoon, {fullName.split(' ')[0]}</h1>
           <div className="header-badge-ai">
             <SparklesIcon size={14} />
             <span>AI Live Monitor</span>
           </div>
         </div>
         <p className="header-subtitle">
-          Here's your organization's procurement intelligence overview.
+          Here's {companyName}'s procurement intelligence overview.
         </p>
       </div>
 
@@ -37,13 +52,10 @@ export const Header = ({ onLogout }) => {
         <button
           type="button"
           className="header-icon-button"
-          aria-label={`Notifications (${userProfile.unreadNotifications} unread)`}
+          aria-label="Notifications"
           title="Notifications"
         >
           <BellIcon size={20} />
-          {userProfile.unreadNotifications > 0 && (
-            <span className="notification-badge-dot" />
-          )}
         </button>
 
         {/* User Profile Pill & Dropdown */}
@@ -55,14 +67,14 @@ export const Header = ({ onLogout }) => {
             tabIndex={0}
             aria-haspopup="true"
             aria-expanded={profileOpen}
-            title={`${userProfile.name} • ${userProfile.role}`}
+            title={`${fullName} • ${jobRole} at ${companyName}`}
           >
             <div className="user-avatar-circle">
-              {userProfile.avatarInitials}
+              {getInitials(fullName)}
             </div>
             <div className="user-profile-info">
-              <span className="user-profile-name">{userProfile.name}</span>
-              <span className="user-profile-role">{userProfile.role}</span>
+              <span className="user-profile-name">{fullName}</span>
+              <span className="user-profile-role">{companyName}</span>
             </div>
           </div>
 
@@ -70,9 +82,10 @@ export const Header = ({ onLogout }) => {
           {profileOpen && (
             <div className="profile-dropdown-menu" role="menu">
               <div className="dropdown-user-header">
-                <div className="dropdown-user-name">{userProfile.name}</div>
-                <div className="dropdown-user-org">{userProfile.organization}</div>
-                <div className="dropdown-user-email">{userProfile.email}</div>
+                <div className="dropdown-user-name">{fullName}</div>
+                <div className="dropdown-user-org">{companyName}</div>
+                <div className="dropdown-user-role">{jobRole}</div>
+                {email && <div className="dropdown-user-email">{email}</div>}
               </div>
               <div className="dropdown-divider" />
               <button
@@ -80,7 +93,7 @@ export const Header = ({ onLogout }) => {
                 className="dropdown-item dropdown-logout-btn"
                 onClick={() => {
                   setProfileOpen(false);
-                  if (onLogout) onLogout();
+                  logout();
                 }}
                 role="menuitem"
               >

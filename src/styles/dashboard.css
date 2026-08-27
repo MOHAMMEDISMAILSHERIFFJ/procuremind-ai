@@ -2400,4 +2400,322 @@
 .font-semibold { font-weight: 600; }
 .font-bold { font-weight: 700; }
 
+/* ==========================================================================
+   15. Registration Multi-Step Styles
+   ========================================================================== */
+.register-card-wrapper {
+  max-width: 540px;
+}
+
+.register-steps-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.step-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.step-pill.active {
+  background-color: rgba(37, 99, 235, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+}
+
+.step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.step-pill.active .step-num {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.step-connector {
+  width: 16px;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.step-fields-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .form-row-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.register-ai-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--pm-radius-md);
+  font-size: 11.5px;
+  color: #93c5fd;
+  line-height: 1.4;
+}
+
+.register-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.btn-register-back {
+  padding: 11px 18px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  border-radius: var(--pm-radius-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-register-back:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.btn-create-account {
+  width: 100%;
+  padding: 11px 16px;
+  background: transparent;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+  border-radius: var(--pm-radius-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-create-account:hover {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.register-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #94a3b8;
+  margin-top: -6px;
+}
+
+.btn-link-login {
+  background: transparent;
+  border: none;
+  color: #60a5fa;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12.5px;
+}
+
+.btn-link-login:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   16. Professional Empty State Cards
+   ========================================================================== */
+.empty-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 24px;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: var(--pm-radius-lg);
+}
+
+.empty-state-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.empty-state-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.empty-state-desc {
+  font-size: 13px;
+  color: #64748b;
+  max-width: 440px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.btn-add-record {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: 1px solid #1d4ed8;
+  border-radius: var(--pm-radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-add-record:hover {
+  background-color: #1d4ed8;
+}
+
+.module-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ==========================================================================
+   17. Clean Modal Styles
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(9, 14, 26, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.15s ease;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 480px;
+  background-color: #ffffff;
+  border-radius: var(--pm-radius-lg);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.modal-close-btn:hover {
+  color: #0f172a;
+}
+
+.modal-form {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-form .form-label {
+  color: #334155;
+}
+
+.modal-form .form-input {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.modal-form .form-input:focus {
+  background-color: #ffffff;
+  border-color: #2563eb;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+
 

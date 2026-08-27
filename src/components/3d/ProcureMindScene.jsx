@@ -3,72 +3,7 @@ import React, { useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html, Float, Line, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
-
-// Node Definitions representing the exact requested pipeline topology:
-//                  MARKET DATA (Top)
-//                       |
-// VENDORS (Left) → AI PROCUREMENT INTELLIGENCE (Center) ← EXPENSES (Right)
-//                       |
-//                  PROCUREMENT (Mid-Bottom)
-//                       |
-//               COMPANY BEHAVIOR (Bottom)
-const NODES = [
-  {
-    id: 'market-data',
-    name: 'Market Data',
-    category: 'EXTERNAL INTELLIGENCE',
-    position: [0, 2.5, 0.2],
-    color: '#06B6D4',
-    glowColor: '#22D3EE',
-    type: 'top-input',
-    stat: 'Global Indices Live',
-    shape: 'tetrahedron',
-  },
-  {
-    id: 'vendors',
-    name: 'Vendors',
-    category: 'SUPPLY BASE',
-    position: [-3.6, 0, 0.3],
-    color: '#818CF8',
-    glowColor: '#A5B4FC',
-    type: 'left-input',
-    stat: '142 Active Rates',
-    shape: 'octahedron',
-  },
-  {
-    id: 'expenses',
-    name: 'Expenses',
-    category: 'DATA INGESTION',
-    position: [3.6, 0, 0.3],
-    color: '#10B981',
-    glowColor: '#34D399',
-    type: 'right-input',
-    stat: '₹50.4L Monitored',
-    shape: 'octahedron',
-  },
-  {
-    id: 'procurement',
-    name: 'Procurement',
-    category: 'DECISION HUB',
-    position: [0, -1.8, 0.3],
-    color: '#3B82F6',
-    glowColor: '#60A5FA',
-    type: 'decision',
-    stat: '12 Decisions Queued',
-    shape: 'icosahedron',
-  },
-  {
-    id: 'company-behavior',
-    name: 'Company Behavior',
-    category: 'HISTORICAL PATTERNS',
-    position: [0, -3.3, 0.2],
-    color: '#EC4899',
-    glowColor: '#F472B6',
-    type: 'context',
-    stat: '98.4% Policy Adherence',
-    shape: 'tetrahedron',
-  },
-];
+import { useAuth } from '../../context/useAuth';
 
 // Central Floating AI Intelligence Core Component
 function CentralAiCore({ isHovered, onHover }) {
@@ -194,7 +129,6 @@ function IntelligenceNode({ node, activeNodeId, onSelectNode }) {
       const t = clock.getElapsedTime() + (node.position[0] * 1.5) + (node.position[1] * 0.8);
       meshRef.current.rotation.y = t * 0.4;
       meshRef.current.rotation.x = t * 0.2;
-      // Gentle floating motion
       meshRef.current.position.y = node.position[1] + Math.sin(t * 1.6) * 0.1;
     }
   });
@@ -295,7 +229,7 @@ function EnergyPulse({ start, end, speed = 1, color = '#60A5FA' }) {
   );
 }
 
-// Connecting Lines and Neural Links according to requested topology
+// Connecting Lines and Neural Links
 function ConnectionLines({ nodes }) {
   const centralPoint = [0, 0, 0];
   const marketNode = nodes.find((n) => n.id === 'market-data');
@@ -379,12 +313,74 @@ function ConnectionLines({ nodes }) {
   );
 }
 
-// Main 3D Scene Controller Component
+// Main 3D Scene Controller Component bound dynamically to the active user's dataset
 export default function ProcureMindScene() {
+  const { metrics, currentUser, userData } = useAuth();
   const [activeNodeId, setActiveNodeId] = useState(null);
   const [coreHovered, setCoreHovered] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
   const controlsRef = useRef();
+
+  // Dynamically constructed nodes based strictly on the logged-in user's data
+  const dynamicNodes = useMemo(() => {
+    return [
+      {
+        id: 'market-data',
+        name: 'Market Data',
+        category: 'EXTERNAL INTELLIGENCE',
+        position: [0, 2.5, 0.2],
+        color: '#06B6D4',
+        glowColor: '#22D3EE',
+        type: 'top-input',
+        stat: userData?.marketData?.length > 0 ? `${userData.marketData.length} Indices Live` : '0 Indices Tracked',
+        shape: 'tetrahedron',
+      },
+      {
+        id: 'vendors',
+        name: 'Vendors',
+        category: 'SUPPLY BASE',
+        position: [-3.6, 0, 0.3],
+        color: '#818CF8',
+        glowColor: '#A5B4FC',
+        type: 'left-input',
+        stat: `${metrics.vendorCount} Vendors`,
+        shape: 'octahedron',
+      },
+      {
+        id: 'expenses',
+        name: 'Expenses',
+        category: 'DATA INGESTION',
+        position: [3.6, 0, 0.3],
+        color: '#10B981',
+        glowColor: '#34D399',
+        type: 'right-input',
+        stat: `${metrics.totalSpendFormatted} Spend`,
+        shape: 'octahedron',
+      },
+      {
+        id: 'procurement',
+        name: 'Procurement',
+        category: 'DECISION HUB',
+        position: [0, -1.8, 0.3],
+        color: '#3B82F6',
+        glowColor: '#60A5FA',
+        type: 'decision',
+        stat: `${metrics.procurementCount} Orders`,
+        shape: 'icosahedron',
+      },
+      {
+        id: 'company-behavior',
+        name: 'Company Behavior',
+        category: 'HISTORICAL PATTERNS',
+        position: [0, -3.3, 0.2],
+        color: '#EC4899',
+        glowColor: '#F472B6',
+        type: 'context',
+        stat: `${metrics.subscriptionCount} Subscriptions`,
+        shape: 'tetrahedron',
+      },
+    ];
+  }, [metrics, userData]);
 
   const handleResetCamera = () => {
     if (controlsRef.current) {
@@ -392,7 +388,7 @@ export default function ProcureMindScene() {
     }
   };
 
-  const activeNodeInfo = NODES.find((n) => n.id === activeNodeId);
+  const activeNodeInfo = dynamicNodes.find((n) => n.id === activeNodeId);
 
   return (
     <div className="procuremind-3d-wrapper">
@@ -401,11 +397,11 @@ export default function ProcureMindScene() {
         <div className="scene-overlay-left">
           <div className="scene-status-badge">
             <span className="scene-pulse-dot" />
-            <span>NEURAL DECISION ARCHITECTURE</span>
+            <span>NEURAL DECISION ARCHITECTURE &bull; {currentUser?.companyName || 'WORKSPACE'}</span>
           </div>
           <h2 className="scene-overlay-title">AI Procurement Intelligence Flow</h2>
           <p className="scene-overlay-subtitle">
-            MARKET &bull; VENDORS &bull; EXPENSES &rarr; [ AI CORE ] &rarr; PROCUREMENT &rarr; BEHAVIOR
+            MARKET &bull; VENDORS ({metrics.vendorCount}) &bull; EXPENSES ({metrics.totalSpendFormatted}) &rarr; [ AI CORE ] &rarr; PROCUREMENT ({metrics.procurementCount})
           </p>
         </div>
 
@@ -453,8 +449,8 @@ export default function ProcureMindScene() {
           <Float speed={1.2} rotationIntensity={0.12} floatIntensity={0.35}>
             <Sparkles count={40} scale={12} size={1.8} speed={0.4} color="#60A5FA" opacity={0.45} />
             <CentralAiCore isHovered={coreHovered} onHover={setCoreHovered} />
-            <ConnectionLines nodes={NODES} />
-            {NODES.map((node) => (
+            <ConnectionLines nodes={dynamicNodes} />
+            {dynamicNodes.map((node) => (
               <IntelligenceNode
                 key={node.id}
                 node={node}
@@ -487,12 +483,12 @@ export default function ProcureMindScene() {
       <div className="scene-footer-bar">
         <div className="scene-legend-item">
           <span className="legend-dot dot-cyan" />
-          <span className="legend-label">Market Data</span>
+          <span className="legend-label">Market Intel ({userData?.marketData?.length || 0})</span>
         </div>
         <div className="scene-legend-separator">&bull;</div>
         <div className="scene-legend-item">
           <span className="legend-dot dot-indigo" />
-          <span className="legend-label">Vendors</span>
+          <span className="legend-label">Vendors ({metrics.vendorCount})</span>
         </div>
         <div className="scene-legend-separator">&rarr;</div>
         <div className="scene-legend-item scene-legend-core">
@@ -502,17 +498,17 @@ export default function ProcureMindScene() {
         <div className="scene-legend-separator">&larr;</div>
         <div className="scene-legend-item">
           <span className="legend-dot dot-emerald" />
-          <span className="legend-label">Expenses</span>
+          <span className="legend-label">Expenses ({metrics.totalSpendFormatted})</span>
         </div>
         <div className="scene-legend-separator">&rarr;</div>
         <div className="scene-legend-item">
           <span className="legend-dot dot-blue" />
-          <span className="legend-label">Procurement Decisions</span>
+          <span className="legend-label">Orders ({metrics.procurementCount})</span>
         </div>
         <div className="scene-legend-separator">&rarr;</div>
         <div className="scene-legend-item">
           <span className="legend-dot dot-pink" />
-          <span className="legend-label">Company Behavior</span>
+          <span className="legend-label">Subscriptions ({metrics.subscriptionCount})</span>
         </div>
       </div>
 
@@ -530,7 +526,7 @@ export default function ProcureMindScene() {
             </div>
           </div>
           <div className="strip-mid">
-            <span className="strip-stat-label">Real-time Stream:</span>
+            <span className="strip-stat-label">Telemetry Status:</span>
             <span className="strip-stat-value">{activeNodeInfo.stat}</span>
           </div>
           <button

@@ -8,74 +8,101 @@ import {
   ArrowUpRightIcon,
   ArrowDownRightIcon,
 } from '../icons/Icons';
-import { kpiMetrics } from '../../data/mockData';
+import { useAuth } from '../../context/useAuth';
 
 export const KpiCards = () => {
-  const renderIcon = (iconName) => {
-    switch (iconName) {
-      case 'CreditCard':
-        return <CreditCardIcon size={22} />;
-      case 'TrendingUp':
-        return <TrendingUpIcon size={22} />;
-      case 'ShieldAlert':
-        return <ShieldAlertIcon size={22} />;
-      case 'CheckSquare':
-        return <CheckSquareIcon size={22} />;
-      default:
-        return <CreditCardIcon size={22} />;
-    }
-  };
+  const { metrics, currentUser } = useAuth();
 
-  const getIndicatorBadge = (metric) => {
-    switch (metric.id) {
-      case 'total-spend':
-        return (
-          <span className="kpi-tag kpi-tag-neutral">
-            <ArrowUpRightIcon size={12} />
-            <span>MOM</span>
-          </span>
-        );
-      case 'potential-savings':
-        return (
-          <span className="kpi-tag kpi-tag-success">
-            <ArrowUpRightIcon size={12} />
-            <span>High Impact</span>
-          </span>
-        );
-      case 'risk-alerts':
-        return (
-          <span className="kpi-tag kpi-tag-danger">
-            <span className="kpi-dot-pulse" />
-            <span>Action Required</span>
-          </span>
-        );
-      case 'pending-decisions':
-        return (
-          <span className="kpi-tag kpi-tag-info">
-            <ArrowDownRightIcon size={12} />
-            <span>In Pipeline</span>
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
+  const cards = [
+    {
+      id: 'total-spend',
+      title: 'TOTAL SPEND',
+      value: metrics.totalSpendFormatted,
+      supportingText: metrics.totalSpendValue > 0
+        ? `YTD Spend for ${currentUser?.companyName || 'Organization'}`
+        : 'No transaction data recorded yet',
+      icon: <CreditCardIcon size={22} />,
+      indicatorType: metrics.totalSpendValue > 0 ? 'neutral' : 'neutral',
+      badge: (
+        <span className="kpi-tag kpi-tag-neutral">
+          <ArrowUpRightIcon size={12} />
+          <span>YTD</span>
+        </span>
+      ),
+    },
+    {
+      id: 'potential-savings',
+      title: 'POTENTIAL SAVINGS',
+      value: metrics.potentialSavingsFormatted,
+      supportingText: metrics.potentialSavingsValue > 0
+        ? 'Identified by AI heuristics'
+        : '0 savings opportunities detected',
+      icon: <TrendingUpIcon size={22} />,
+      indicatorType: metrics.potentialSavingsValue > 0 ? 'success' : 'neutral',
+      badge: metrics.potentialSavingsValue > 0 ? (
+        <span className="kpi-tag kpi-tag-success">
+          <ArrowUpRightIcon size={12} />
+          <span>Actionable</span>
+        </span>
+      ) : (
+        <span className="kpi-tag kpi-tag-neutral">
+          <span>0 Active</span>
+        </span>
+      ),
+    },
+    {
+      id: 'risk-alerts',
+      title: 'RISK ALERTS',
+      value: String(metrics.riskAlertsCount),
+      supportingText: metrics.riskAlertsCount > 0
+        ? `${metrics.riskAlertsCount} price / supplier variance items`
+        : 'All requisitions within benchmarks',
+      icon: <ShieldAlertIcon size={22} />,
+      indicatorType: metrics.riskAlertsCount > 0 ? 'danger' : 'neutral',
+      badge: metrics.riskAlertsCount > 0 ? (
+        <span className="kpi-tag kpi-tag-danger">
+          <span className="kpi-dot-pulse" />
+          <span>Review</span>
+        </span>
+      ) : (
+        <span className="kpi-tag kpi-tag-neutral">
+          <span>Optimal</span>
+        </span>
+      ),
+    },
+    {
+      id: 'pending-decisions',
+      title: 'PENDING DECISIONS',
+      value: String(metrics.pendingDecisionsCount),
+      supportingText: metrics.pendingDecisionsCount > 0
+        ? `${metrics.pendingDecisionsCount} requisitions awaiting approval`
+        : '0 decisions in review queue',
+      icon: <CheckSquareIcon size={22} />,
+      indicatorType: metrics.pendingDecisionsCount > 0 ? 'info' : 'neutral',
+      badge: (
+        <span className="kpi-tag kpi-tag-info">
+          <ArrowDownRightIcon size={12} />
+          <span>Queue</span>
+        </span>
+      ),
+    },
+  ];
 
   return (
     <section className="kpi-grid" aria-label="Key Performance Indicators">
-      {kpiMetrics.map((metric) => (
+      {cards.map((metric) => (
         <div key={metric.id} className="kpi-card">
           <div className="kpi-card-header">
             <span className="kpi-card-title">{metric.title}</span>
             <div className={`kpi-icon-wrapper kpi-icon-${metric.indicatorType}`}>
-              {renderIcon(metric.icon)}
+              {metric.icon}
             </div>
           </div>
 
           <div className="kpi-card-body">
             <div className="kpi-value-row">
               <span className="kpi-main-number">{metric.value}</span>
-              {getIndicatorBadge(metric)}
+              {metric.badge}
             </div>
 
             <div className="kpi-supporting-row">

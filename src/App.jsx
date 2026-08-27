@@ -1,6 +1,9 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
-import { LoginPage } from './components/auth/LoginPage';
+import React, { useState } from 'react';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { KpiCards } from './components/dashboard/KpiCards';
@@ -20,82 +23,31 @@ import {
 import { SettingsIcon, HelpIcon } from './components/icons/Icons';
 import './styles/dashboard.css';
 
-const AUTH_STORAGE_KEY = 'procuremind_auth_session';
-
-function App() {
-  // Check initial auth state from localStorage
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    try {
-      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed && parsed.authenticated === true;
-      }
-    } catch {
-      // fallback
-    }
-    return false;
-  });
-
+function AppContent() {
+  const { isAuthenticated, currentUser } = useAuth();
+  const [authView, setAuthView] = useState('login'); // 'login' | 'register'
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [currentPath, setCurrentPath] = useState(() => {
-    return window.location.pathname || '/login';
-  });
 
-  // Keep route in sync with URL
-  useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  // Update browser URL without reload
-  const navigateTo = (path) => {
-    setCurrentPath(path);
-    try {
-      window.history.pushState({}, '', path);
-    } catch {
-      // fallback
+  // If not logged in -> toggle between Login and Register views
+  if (!isAuthenticated) {
+    if (authView === 'register') {
+      return (
+        <Register
+          onNavigateToLogin={() => setAuthView('login')}
+          onRegistrationSuccess={() => setActiveTab('dashboard')}
+        />
+      );
     }
-  };
-
-  const handleLoginSuccess = ({ email, rememberMe }) => {
-    const authData = {
-      authenticated: true,
-      email,
-      timestamp: new Date().toISOString(),
-    };
-    if (rememberMe) {
-      try {
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-      } catch {
-        // storage ignored
-      }
-    }
-    setIsAuthenticated(true);
-    navigateTo('/dashboard');
-  };
-
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-    } catch {
-      // storage ignored
-    }
-    setIsAuthenticated(false);
-    setActiveTab('dashboard');
-    navigateTo('/login');
-  };
-
-  // If unauthenticated or current path is /login, render Login Page
-  if (!isAuthenticated || currentPath === '/login') {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <Login
+        onNavigateToRegister={() => setAuthView('register')}
+        onLoginSuccess={() => setActiveTab('dashboard')}
+      />
+    );
   }
 
-  // Render the selected module based on active tab
-  const renderActiveModule = () => {
+  // Render the selected module based on active sidebar tab
+  const renderCurrentView = () => {
     switch (activeTab) {
       case 'procurement':
         return <ProcurementModule />;
@@ -117,13 +69,16 @@ function App() {
                 </div>
                 <div>
                   <h3 className="card-title">Enterprise System Settings</h3>
-                  <p className="card-subtitle">NovaTech Industries &bull; Fiscal Year 2026-27</p>
+                  <p className="card-subtitle">{currentUser?.companyName} Workspace</p>
                 </div>
               </div>
-              <p style={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6 }}>
-                AI Model: Neural Decision Heuristics v2.4 (Active)<br />
-                Currency: Indian Rupee (₹)<br />
-                Entity Identifier: NT-IND-8820
+              <p style={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.8 }}>
+                <strong>Organization:</strong> {currentUser?.companyName}<br />
+                <strong>Account Owner:</strong> {currentUser?.fullName} ({currentUser?.email})<br />
+                <strong>Job Role:</strong> {currentUser?.jobRole} &bull; {currentUser?.department}<br />
+                <strong>Procurement Scope:</strong> {currentUser?.procurementTypes || 'Enterprise Scope'}<br />
+                <strong>Company Profile:</strong> {currentUser?.companyDescription || 'Advanced Technologies'}<br />
+                <strong>AI Heuristics Engine:</strong> Active Multi-Tenant Isolated Sandbox
               </p>
             </div>
           </main>
@@ -137,12 +92,12 @@ function App() {
                   <HelpIcon size={22} />
                 </div>
                 <div>
-                  <h3 className="card-title">ProcureMind Intelligence Support</h3>
-                  <p className="card-subtitle">Enterprise SLA Helpdesk</p>
+                  <h3 className="card-title">ProcureMind SLA Help & Support</h3>
+                  <p className="card-subtitle">AI Procurement Engineer Support</p>
                 </div>
               </div>
               <p style={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6 }}>
-                For urgent procurement variance reviews or contract benchmarks, reach out to your designated AI procurement engineer.
+                Need assistance configuring custom rate cards or connecting ERP transaction streams for {currentUser?.companyName}? Reach out at support@procuremind.ai
               </p>
             </div>
           </main>
@@ -151,25 +106,25 @@ function App() {
       default:
         return (
           <main className="dashboard-content" id="main-content">
-            {/* 3. KPI Cards */}
+            {/* KPI Cards (bound to user data) */}
             <KpiCards />
 
-            {/* 3D Visual Environment: AI Procurement Intelligence Neural Core */}
+            {/* 3D Visualization (bound to user data) */}
             <ProcureMindScene />
 
-            {/* 4. AI Insights */}
+            {/* AI Insights (bound to user data) */}
             <AiInsights />
 
-            {/* 5. Spending Overview & 7. Priority Actions */}
+            {/* Spending Overview & Priority Actions */}
             <div className="dashboard-mid-grid">
               <SpendingChart />
               <PriorityActions />
             </div>
 
-            {/* 6. Recent Procurement Table */}
+            {/* Recent Procurement Requisitions */}
             <RecentProcurement />
 
-            {/* 8. Product Message */}
+            {/* Product Message */}
             <ProductMessage />
           </main>
         );
@@ -178,19 +133,25 @@ function App() {
 
   return (
     <div className="app-layout">
-      {/* 1. Left Sidebar */}
+      {/* Sidebar Navigation */}
       <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} />
 
-      {/* Main Content Viewport */}
+      {/* Main Viewport */}
       <div className="main-wrapper">
-        {/* 2. Top Header with User Profile & Logout */}
-        <Header onLogout={handleLogout} />
+        {/* Header with User Info & Logout */}
+        <Header />
 
-        {/* Dynamic Section View */}
-        {renderActiveModule()}
+        {/* Dynamic View */}
+        {renderCurrentView()}
       </div>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}

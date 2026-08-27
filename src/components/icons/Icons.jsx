@@ -202,6 +202,22 @@ export const RefreshIcon = ({ className = '', size = 16, ...props }) => (
   </svg>
 );
 
+export const PlusIcon = ({ className = '', size = 16, ...props }) => (
+  <svg {...iconProps} width={size} height={size} className={className} {...props}>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+export const UsersIcon = ({ className = '', size = 16, ...props }) => (
+  <svg {...iconProps} width={size} height={size} className={className} {...props}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
 export const BrainSparkleLogo = ({ size = 28, className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <rect width="32" height="32" rx="8" fill="#1E3A8A" />

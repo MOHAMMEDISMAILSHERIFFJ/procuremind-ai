@@ -6,12 +6,16 @@ import {
   TrendingUpIcon,
   AlertTriangleIcon,
   ChevronRightIcon,
+  CheckCircleIcon,
 } from '../icons/Icons';
 import { Badge } from '../common/Badge';
-import { aiInsights } from '../../data/mockData';
+import { useAuth } from '../../context/useAuth';
 
 export const AiInsights = () => {
+  const { metrics, currentUser } = useAuth();
   const [selectedInsight, setSelectedInsight] = useState(null);
+
+  const insights = metrics.aiInsightsList || [];
 
   const getInsightTypeBadge = (insight) => {
     switch (insight.severity) {
@@ -36,7 +40,7 @@ export const AiInsights = () => {
       default:
         return (
           <Badge variant="neutral" size="sm">
-            {insight.type}
+            {insight.type || 'INSIGHT'}
           </Badge>
         );
     }
@@ -67,69 +71,81 @@ export const AiInsights = () => {
               AI Insights
             </h2>
             <p className="section-subtitle">
-              Continuous neural heuristics scanning procurement requests, vendor rates & contracts
+              Neural heuristics scanning {currentUser?.companyName || 'organization'} procurement requests & rate benchmarks
             </p>
           </div>
         </div>
         <div className="section-actions">
           <span className="insights-active-count">
-            <span className="pulse-indicator-emerald" /> 3 actionable items
+            <span className="pulse-indicator-emerald" /> {insights.length} actionable items
           </span>
         </div>
       </div>
 
-      <div className="ai-insights-grid">
-        {aiInsights.map((insight) => (
-          <div
-            key={insight.id}
-            className={`insight-card insight-card-${insight.severity} ${selectedInsight === insight.id ? 'selected' : ''}`}
-          >
-            {/* Top row: Badge & Confidence */}
-            <div className="insight-card-top">
-              {getInsightTypeBadge(insight)}
-              <span className="insight-confidence-pill">
-                {insight.confidence}
-              </span>
-            </div>
+      {insights.length > 0 ? (
+        <div className="ai-insights-grid">
+          {insights.map((insight) => (
+            <div
+              key={insight.id}
+              className={`insight-card insight-card-${insight.severity} ${selectedInsight === insight.id ? 'selected' : ''}`}
+            >
+              <div className="insight-card-top">
+                {getInsightTypeBadge(insight)}
+                {insight.confidence && (
+                  <span className="insight-confidence-pill">
+                    {insight.confidence}
+                  </span>
+                )}
+              </div>
 
-            {/* Content */}
-            <div className="insight-card-content">
-              <div className="insight-header-wrapper">
-                <div className="insight-card-icon-bubble">
-                  {getInsightIcon(insight.severity)}
+              <div className="insight-card-content">
+                <div className="insight-header-wrapper">
+                  <div className="insight-card-icon-bubble">
+                    {getInsightIcon(insight.severity)}
+                  </div>
+                  <h3 className="insight-card-title">{insight.title}</h3>
                 </div>
-                <h3 className="insight-card-title">{insight.title}</h3>
+
+                <p className="insight-card-description">{insight.description}</p>
+
+                {insight.impact && (
+                  <div className="insight-impact-box">
+                    <span className="impact-label">AI Context:</span>
+                    <span className="impact-text">{insight.impact}</span>
+                  </div>
+                )}
               </div>
 
-              <p className="insight-card-description">{insight.description}</p>
-
-              {/* Supporting impact detail */}
-              <div className="insight-impact-box">
-                <span className="impact-label">AI Context:</span>
-                <span className="impact-text">{insight.impact}</span>
+              <div className="insight-card-footer">
+                <span className="insight-category-tag">{insight.category || 'General'}</span>
+                <button
+                  type="button"
+                  className="btn-view-analysis"
+                  onClick={() => {
+                    setSelectedInsight(
+                      selectedInsight === insight.id ? null : insight.id
+                    );
+                  }}
+                  aria-label={`View analysis for ${insight.title}`}
+                >
+                  <span>View Analysis</span>
+                  <ChevronRightIcon size={15} />
+                </button>
               </div>
             </div>
-
-            {/* Footer action */}
-            <div className="insight-card-footer">
-              <span className="insight-category-tag">{insight.category}</span>
-              <button
-                type="button"
-                className="btn-view-analysis"
-                onClick={() => {
-                  setSelectedInsight(
-                    selectedInsight === insight.id ? null : insight.id
-                  );
-                }}
-                aria-label={`View analysis for ${insight.title}`}
-              >
-                <span>View Analysis</span>
-                <ChevronRightIcon size={15} />
-              </button>
-            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="card empty-state-card">
+          <div className="empty-state-icon-wrapper">
+            <CheckCircleIcon size={24} className="text-emerald-500" />
           </div>
-        ))}
-      </div>
+          <h3 className="empty-state-title">AI Engine Active &bull; No Risk Anomalies Detected</h3>
+          <p className="empty-state-desc">
+            ProcureMind neural heuristics are actively monitoring {currentUser?.companyName}. Add purchase orders or vendor rate cards to trigger automated price benchmarks.
+          </p>
+        </div>
+      )}
     </section>
   );
 };
