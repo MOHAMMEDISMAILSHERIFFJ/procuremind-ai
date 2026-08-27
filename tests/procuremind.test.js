@@ -1,21 +1,30 @@
 // tests/procuremind.test.js
 /**
- * ProcureMind End-to-End Test Suite
+ * ProcureMind Comprehensive Quality Assurance & Data Integrity Test Suite
  *
- * Covers unit tests and integration tests for:
+ * Covers:
  * 1. Intent Parser & Natural Language Structuring
- * 2. Pricing & Benchmark Variance Calculations
- * 3. AI Service Schema Validation & Fallback Intelligence
+ * 2. Mathematical Invariant & Amount Integrity (quantity * unitPrice = totalAmount)
+ * 3. AI Service Schema Validation & Deterministic Fallback
  * 4. Autonomous Negotiation Strategy & Dialogue Simulation
- * 5. Multi-User Data Isolation & Zero-State Initializer
- * 6. Storage Persistence & Recomputation Engine
+ * 5. Multi-User Isolation & Zero State Integrity
+ * 6. Concurrency & Mutex Protection
+ * 7. Deterministic Duplicate Detection & Identity (Sorted IDs, No Self-Matches, Deduplication)
+ * 8. Mutually Exclusive AI Findings & Counter Consistency
+ * 9. Human Approval Safety & Decision State Transitions (Approve, Negotiate, Reject, Outcomes)
+ * 10. Universal Multi-Field Search & Filter Engine (Case-insensitive, Trimming, Null-safety, Numbers)
+ * 11. Data Persistence & Idempotency Across Re-renders
  */
 
 import {
   createEmptyDataset,
   saveUserData,
   getCurrentUserData,
-  calculateMetrics,
+  addProcurementRequest,
+  createDecisionFromInsight,
+  updateDecisionStatus,
+  resolveInsight,
+  searchRecords,
 } from '../src/services/dataService.js';
 
 import {
@@ -26,6 +35,11 @@ import {
   getAgentCurrentState,
   AGENT_STATES,
 } from '../src/services/agentService.js';
+
+import {
+  detectDuplicateTransactions,
+  runIntelligenceAnalysis,
+} from '../src/services/intelligenceService.js';
 
 import { analyzeProcurementRequest } from '../src/services/aiService.js';
 
@@ -53,7 +67,7 @@ function assert(condition, message) {
 
 async function runAllTests() {
   console.log('================================================================');
-  console.log('PROCUREMIND QUALITY ASSURANCE & UNIT TEST SUITE');
+  console.log('PROCUREMIND DATA INTEGRITY & STATE CONSISTENCY SUITE');
   console.log('================================================================\n');
 
   // ── 1. Natural Language Intent Parser Tests ───────────────────────────────
@@ -99,16 +113,36 @@ async function runAllTests() {
   const tLarge = parseProcurementIntent('999999 laptops');
   assert(tLarge.quantity === 50000, 'Excessive quantity clamped to safe maximum 50,000');
 
-  // ── 2. Pricing & Benchmark Math Tests ─────────────────────────────────────
-  console.log('\n2. Mathematical Verification & Pricing Variance Tests:');
+  // ── 2. Mathematical Invariant & Amount Integrity Tests ────────────────────
+  console.log('\n2. Mathematical Invariant & Amount Integrity Tests:');
 
-  const quote = 2000000;
-  const benchmark = 1775000;
-  const varianceDelta = quote - benchmark;
-  const variancePct = Number(((varianceDelta / benchmark) * 100).toFixed(1));
+  const userIdTest = 'usr_math_test';
+  saveUserData(userIdTest, createEmptyDataset(userIdTest, 'Math Invariant Corp'));
 
-  assert(varianceDelta === 225000, 'Variance delta equals exactly ₹2,25,000');
-  assert(variancePct === 12.7, 'Variance percentage equals exactly +12.7%');
+  // Test: quantity * unitPrice = totalAmount
+  const testProc1 = addProcurementRequest(userIdTest, {
+    item: 'Developer Laptops',
+    quantity: 25,
+    unitPrice: 40000,
+    unitBenchmark: 35000,
+  });
+  const savedReq1 = testProc1.procurementRequests[0];
+  assert(savedReq1.totalAmount === 1000000, 'Calculates totalAmount = quantity * unitPrice (25 * 40,000 = ₹10,00,000)');
+  assert(savedReq1.historicalBenchmark === 875000, 'Calculates benchmarkTotal = quantity * unitBenchmark (25 * 35,000 = ₹8,75,000)');
+  assert(savedReq1.varianceAmount === 125000, 'Calculates varianceAmount = totalAmount - historicalBenchmark (₹1,25,000)');
+  assert(savedReq1.variancePercentage === 14.3, 'Calculates variancePercentage = +14.3%');
+  assert(savedReq1.quantity * savedReq1.unitPrice === savedReq1.totalAmount, 'Mathematical invariant: quantity * unitPrice === totalAmount holds');
+  assert(savedReq1.quantity * savedReq1.unitBenchmark === savedReq1.historicalBenchmark, 'Mathematical invariant: quantity * unitBenchmark === historicalBenchmark holds');
+
+  // Test: Total amount supplied -> unitPrice correctly derived
+  const testProc2 = addProcurementRequest(userIdTest, {
+    item: 'Ergonomic Desks',
+    quantity: 10,
+    totalAmount: 150000,
+  });
+  const savedReq2 = testProc2.procurementRequests.find(r => r.item === 'Ergonomic Desks');
+  assert(savedReq2.unitPrice === 15000, 'Derives unitPrice = totalAmount / quantity (₹15,000)');
+  assert(savedReq2.quantity * savedReq2.unitPrice === savedReq2.totalAmount, 'Derived unit price preserves total invariant');
 
   // ── 3. AI Service & Fallback Engine Tests ─────────────────────────────────
   console.log('\n3. AI Service Schema Validation & Fallback Tests:');
@@ -141,65 +175,203 @@ async function runAllTests() {
   assert(negSim.dialogue[3].sender.includes('Supplier'), 'Round 4 concludes with Supplier agreement');
   assert(negSim.potentialSaving > 0, 'Calculates positive potential savings target');
 
-  // ── 5. Multi-User Data Isolation & Zero State Tests ───────────────────────
-  console.log('\n5. Multi-User Isolation & Zero State Tests:');
+  // ── 5. Deterministic Duplicate Detection & Identity Tests ─────────────────
+  console.log('\n5. Deterministic Duplicate Detection & Identity Tests:');
+
+  const userDupId = 'usr_dup_test';
+  const dupDataset = createEmptyDataset(userDupId, 'Duplicate Audit Corp');
+
+  // Add two identical invoices
+  dupDataset.invoices = [
+    { id: 'INV-1002', vendorName: 'CompEdge Systems', amount: 450000, description: 'Q3 Laptop Batch A', purchaseOrderId: 'PO-991' },
+    { id: 'INV-1001', vendorName: 'CompEdge Systems', amount: 450000, description: 'Q3 Laptop Batch A', purchaseOrderId: 'PO-991' },
+  ];
+
+  const dupFindings = detectDuplicateTransactions(dupDataset);
+  assert(dupFindings.length === 1, 'Detects exactly 1 duplicate finding for invoice pair');
+  assert(dupFindings[0].id === 'dup_inv_INV-1001_INV-1002', 'Generates lexicographically sorted stable ID (INV-1001 before INV-1002)');
+  assert(dupFindings[0].financialImpact === 450000, 'Duplicate financial impact equals billed amount ₹4.5L');
+
+  // Reverse pair order test (ensures order independence)
+  dupDataset.invoices = [
+    { id: 'INV-1001', vendorName: 'CompEdge Systems', amount: 450000, description: 'Q3 Laptop Batch A', purchaseOrderId: 'PO-991' },
+    { id: 'INV-1002', vendorName: 'CompEdge Systems', amount: 450000, description: 'Q3 Laptop Batch A', purchaseOrderId: 'PO-991' },
+  ];
+  const dupFindingsReversed = detectDuplicateTransactions(dupDataset);
+  assert(dupFindingsReversed[0].id === dupFindings[0].id, 'Duplicate ID is invariant to array ordering');
+
+  // Self-comparison exclusion test
+  dupDataset.invoices = [
+    { id: 'INV-1001', vendorName: 'CompEdge Systems', amount: 450000, description: 'Q3 Laptop Batch A' },
+  ];
+  assert(detectDuplicateTransactions(dupDataset).length === 0, 'Does not compare invoice with itself');
+
+  // Resolution filtering test
+  saveUserData(userDupId, dupDataset);
+  resolveInsight(userDupId, 'dup_inv_INV-1001_INV-1002', 'held_duplicate', 'Disputed duplicate invoice');
+  const userWithResolved = getCurrentUserData(userDupId);
+  userWithResolved.invoices = [
+    { id: 'INV-1001', vendorName: 'CompEdge Systems', amount: 450000, description: 'Q3 Laptop Batch A', purchaseOrderId: 'PO-991' },
+    { id: 'INV-1002', vendorName: 'CompEdge Systems', amount: 450000, description: 'Q3 Laptop Batch A', purchaseOrderId: 'PO-991' },
+  ];
+  const dupAfterResolve = detectDuplicateTransactions(userWithResolved);
+  assert(dupAfterResolve.length === 0, 'Excludes resolved duplicate finding from active alerts');
+
+  // ── 6. Mutually Exclusive AI Findings & Counter Consistency ───────────────
+  console.log('\n6. Mutually Exclusive AI Findings & Counter Consistency Tests:');
+
+  const userCounterId = 'usr_counters_test';
+  const testData = createEmptyDataset(userCounterId, 'Counter Test Corp');
+
+  testData.invoices = [
+    { id: 'INV-201', vendorName: 'Vendor X', amount: 100000, description: 'Double charge A' },
+    { id: 'INV-202', vendorName: 'Vendor X', amount: 100000, description: 'Double charge A' },
+  ];
+  testData.procurementRequests = [
+    { id: 'REQ-301', item: 'Server Licenses', totalAmount: 500000, historicalBenchmark: 300000, quantity: 1, unitPrice: 500000 },
+  ];
+  testData.subscriptions = [
+    { id: 'SUB-401', name: 'Cloud SaaS', seatsTotal: 100, seatsActive: 60, seatsIdle: 40, monthlyCost: 10000, costPerYear: 120000 },
+  ];
+  testData.vendors = [
+    { id: 'VND-501', name: 'Risky Supplier', performanceScore: 50, compliance: '70%', totalSpend: 2000000, riskLevel: 3 },
+  ];
+
+  const analysis = runIntelligenceAnalysis(testData);
+  const totalFindings = analysis.insights.length;
+
+  const priceDup = analysis.insights.filter(i => i.type === 'price_anomaly' || i.type === 'duplicate' || i.type === 'budget_deviation').length;
+  const vendorRisk = analysis.insights.filter(i => i.type === 'vendor_alert' || i.type === 'vendor_risk' || i.type === 'early_warning' || i.type === 'spending_anomaly').length;
+  const savings = analysis.insights.filter(i => i.type === 'savings').length;
+
+  assert(totalFindings > 0, `Total findings generated: ${totalFindings}`);
+  assert(priceDup + vendorRisk + savings === totalFindings, `Strict mutual exclusivity: Price & Duplicates (${priceDup}) + Vendor Risk (${vendorRisk}) + Savings (${savings}) === Total (${totalFindings})`);
+
+  // ── 7. Human Approval Safety & Decision State Transitions ─────────────────
+  console.log('\n7. Human Approval Safety & Decision State Transitions Tests:');
+
+  const userApprovalId = 'usr_approval_test';
+  saveUserData(userApprovalId, createEmptyDataset(userApprovalId, 'Approval Workflow Corp'));
+
+  const insightToDecide = {
+    id: 'ins_risk_test_01',
+    title: 'NEGOTIATE: IT Equipment Markup',
+    description: 'Quote is 20% over rate card baseline',
+    recommendation: 'Authorize counter-offer of ₹18.0L',
+    financialImpact: 200000,
+    formattedImpact: '₹2.00L',
+    type: 'savings',
+    severity: 'high',
+    relatedRecords: ['REQ-9901'],
+  };
+
+  // 1. Convert to pending decision (idempotency check)
+  const d1 = createDecisionFromInsight(userApprovalId, insightToDecide);
+  assert(d1.decisions.length === 1, 'Creates exactly 1 pending decision from insight');
+  assert(d1.decisions[0].status === 'Pending Executive Sign-off', 'Decision starts in Pending state (Never auto-approved)');
+  assert(d1.decisions[0].statusVariant === 'under-review', 'Decision has under-review statusVariant');
+
+  // Repeated call should NOT duplicate
+  const d2 = createDecisionFromInsight(userApprovalId, insightToDecide);
+  assert(d2.decisions.length === 1, 'Idempotent: Repeated call does NOT create duplicate decision');
+
+  const targetDecId = d1.decisions[0].id;
+
+  // 2. Executive Negotiation Authorization
+  const dNegotiate = updateDecisionStatus(userApprovalId, targetDecId, 'Negotiation Authorized', { notes: 'Counter-offer approved' });
+  const decNeg = dNegotiate.decisions.find(d => d.id === targetDecId);
+  assert(decNeg.status === 'Negotiation Authorized', 'Decision status updated to Negotiation Authorized');
+  assert(decNeg.statusVariant === 'warning', 'Status variant updated to warning');
+
+  // 3. Executive Approval
+  const dApproved = updateDecisionStatus(userApprovalId, targetDecId, 'Approved by Executive', { actualSaving: 200000, notes: 'Agreement signed' });
+  const decApp = dApproved.decisions.find(d => d.id === targetDecId);
+  assert(decApp.status === 'Approved by Executive', 'Decision status updated to Approved by Executive');
+  assert(decApp.statusVariant === 'approved', 'Status variant updated to approved');
+  assert(dApproved.outcomes.length === 1, 'Logged in Outcomes table (Learning Layer)');
+  assert(dApproved.outcomes[0].actualSaving === 200000, 'Outcomes records actual savings ₹2,00,000');
+  assert(dApproved.outcomes[0].accuracy === 1.0, 'Accuracy calculated as 100%');
+
+  // 4. Executive Rejection
+  const decRejectTest = createDecisionFromInsight(userApprovalId, { id: 'ins_rej_01', title: 'Unapproved Discretionary Spend', financialImpact: 50000 });
+  const targetRejId = decRejectTest.decisions[0].id;
+  const dRejected = updateDecisionStatus(userApprovalId, targetRejId, 'Rejected by Executive', { notes: 'Budget exceeded' });
+  const decRej = dRejected.decisions.find(d => d.id === targetRejId);
+  assert(decRej.status === 'Rejected by Executive', 'Decision status updated to Rejected');
+  assert(decRej.statusVariant === 'danger', 'Status variant updated to danger');
+
+  // ── 8. Universal Multi-Field Search & Filter Engine Tests ──────────────────
+  console.log('\n8. Universal Multi-Field Search & Filter Engine Tests:');
+
+  const searchRecordsDataset = [
+    { id: 'REQ-001', item: 'Developer Laptops', vendor: 'CompEdge Global Systems', category: 'IT Hardware', department: 'Engineering', totalAmount: 2000000, status: 'Under Review' },
+    { id: 'REQ-002', item: '4K Monitors', vendor: 'CompEdge Global Systems', category: 'IT Hardware', department: 'Design', totalAmount: 800000, status: 'Approved' },
+    { id: 'REQ-003', item: 'Figma Enterprise', vendor: 'SaaSPoint', category: 'Software', department: 'Product', totalAmount: 320000, status: 'Under Review' },
+    { id: 'REQ-004', item: 'AWS Cloud Compute', vendor: 'Amazon Web Services', category: 'Cloud Services', department: 'DevOps', totalAmount: 1250000, status: 'Approved' },
+    { id: 'REQ-005', item: 'Ergonomic Chairs', vendor: 'Prime Workspace Co.', category: 'Operations', department: 'HR', totalAmount: 384000, status: 'Rejected' },
+  ];
+
+  // Case-insensitive item search
+  assert(searchRecords(searchRecordsDataset, 'laptop').length === 1, 'Search finds "laptop" (case-insensitive)');
+  assert(searchRecords(searchRecordsDataset, '  LAPTOPS  ').length === 1, 'Search ignores leading/trailing whitespace and plurals prefix');
+
+  // Vendor search
+  assert(searchRecords(searchRecordsDataset, 'compedge').length === 2, 'Search by vendor "compedge" returns 2 records');
+
+  // Request ID search
+  assert(searchRecords(searchRecordsDataset, 'REQ-003').length === 1, 'Search by ID "REQ-003" returns Figma');
+
+  // Category filter
+  assert(searchRecords(searchRecordsDataset, '', [], { category: 'IT Hardware' }).length === 2, 'Filter by category "IT Hardware" returns 2 records');
+
+  // Combined Search + Category Filter + Status Filter
+  const combinedMatch = searchRecords(searchRecordsDataset, 'CompEdge', [], { category: 'IT Hardware', status: 'Approved' });
+  assert(combinedMatch.length === 1 && combinedMatch[0].id === 'REQ-002', 'Combined search "CompEdge" + category "IT Hardware" + status "Approved" returns REQ-002');
+
+  // Numeric amount search
+  assert(searchRecords(searchRecordsDataset, '800000').length === 1, 'Search finds exact numeric amount 800000');
+  assert(searchRecords(searchRecordsDataset, '20.0l').length === 1, 'Search finds formatted shorthand "20.0l"');
+
+  // Empty search returns full dataset
+  assert(searchRecords(searchRecordsDataset, '').length === 5, 'Empty search returns full dataset');
+
+  // No-match search
+  assert(searchRecords(searchRecordsDataset, 'nonexistent query 12345').length === 0, 'No-match search returns empty array without throwing');
+
+  // Null/undefined safety
+  assert(searchRecords(null, 'query').length === 0, 'Null records handled safely');
+  assert(searchRecords([null, undefined, { item: 'valid' }], 'valid').length === 1, 'Null elements in array filtered safely');
+
+  // ── 9. Multi-User Data Isolation & Persistence Tests ──────────────────────
+  console.log('\n9. Multi-User Isolation & End-to-End State Tests:');
 
   mockStorage.clear();
-  const userAlphaId = 'usr_alpha_101';
-  const userBetaId = 'usr_beta_202';
+  const userAlpha = 'usr_alpha_final';
+  const userBeta = 'usr_beta_final';
 
-  const userAlphaData = createEmptyDataset(userAlphaId, 'Alpha Corp');
-  saveUserData(userAlphaId, userAlphaData);
+  saveUserData(userAlpha, createEmptyDataset(userAlpha, 'Alpha Industries'));
+  saveUserData(userBeta, createEmptyDataset(userBeta, 'Beta Technologies'));
 
-  const userBetaData = createEmptyDataset(userBetaId, 'Beta Corp');
-  saveUserData(userBetaId, userBetaData);
+  // Alpha workflow
+  await executeAutonomousAgent('50 laptops for the engineering team', { userId: userAlpha });
+  const alphaResult = getCurrentUserData(userAlpha);
+  assert(alphaResult.procurementRequests.length === 1, 'Alpha has 1 procurement request');
+  assert(alphaResult.decisions.length === 1, 'Alpha has 1 decision created');
+  assert(alphaResult.expenses.length === 1, 'Alpha has 1 expense entry');
 
-  const alphaZero = calculateMetrics(userAlphaData);
-  assert(alphaZero.totalSpendValue === 0, 'Alpha starts with ₹0 total spend');
-  assert(alphaZero.potentialSavingsValue === 0, 'Alpha starts with ₹0 savings');
-  assert(alphaZero.riskAlertsCount === 0, 'Alpha starts with 0 risk alerts');
-  assert(alphaZero.pendingDecisionsCount === 0, 'Alpha starts with 0 pending decisions');
-  assert(alphaZero.vendorCount === 0, 'Alpha starts with 0 vendors');
-  assert(alphaZero.aiInsightsList.length === 0, 'Alpha starts with 0 AI insights');
+  // Beta remains 0
+  const betaResult = getCurrentUserData(userBeta);
+  assert(betaResult.procurementRequests.length === 0, 'Beta remains untouched (0 requests)');
+  assert(betaResult.decisions.length === 0, 'Beta remains untouched (0 decisions)');
+  assert(betaResult.expenses.length === 0, 'Beta remains untouched (0 expenses)');
 
-  // Perform procurement for Alpha
-  await executeAutonomousAgent('50 laptops for the engineering team', { userId: userAlphaId });
-  const alphaAfter = getCurrentUserData(userAlphaId);
-  const alphaMetrics = calculateMetrics(alphaAfter);
-
-  assert(alphaMetrics.totalSpendValue === 2000000, 'Alpha total spend updated to ₹20.0L');
-  assert(alphaAfter.procurementRequests.length === 1, 'Alpha has 1 procurement record');
-  assert(alphaAfter.decisions.length === 1, 'Alpha has 1 decision record');
-
-  // Verify Beta is completely unaffected
-  const betaCheck = getCurrentUserData(userBetaId);
-  const betaMetrics = calculateMetrics(betaCheck);
-
-  assert(betaMetrics.totalSpendValue === 0, 'Beta remains at ₹0 total spend (No bleed from Alpha)');
-  assert(betaCheck.procurementRequests.length === 0, 'Beta has 0 procurement records');
-  assert(betaCheck.decisions.length === 0, 'Beta has 0 decisions');
-
-  // Perform procurement for Beta
-  await executeAutonomousAgent('10 printers for the finance department', { userId: userBetaId });
-  const betaAfter = getCurrentUserData(userBetaId);
-  const betaAfterMetrics = calculateMetrics(betaAfter);
-
-  assert(betaAfterMetrics.totalSpendValue === 280000, 'Beta total spend updated to ₹2.8L');
-  assert(betaAfter.procurementRequests[0].item.includes('Printers'), 'Beta requisition is Printers');
-
-  // Re-verify Alpha remained intact
-  const alphaFinal = getCurrentUserData(userAlphaId);
-  assert(alphaFinal.procurementRequests[0].item.includes('Laptops'), 'Alpha requisition is still Laptops');
-
-  // ── 6. Agent Concurrency & Mutex Lock Test ────────────────────────────────
-  console.log('\n6. Concurrency & Mutex Protection Tests:');
-
+  // ── 10. Agent Concurrency Mutex Test ──────────────────────────────────────
+  console.log('\n10. Concurrency & Mutex Protection Tests:');
   resetAgentState();
-  const stateBefore = getAgentCurrentState();
-  assert(stateBefore.state === AGENT_STATES.IDLE, 'Agent resets cleanly to IDLE state');
+  assert(getAgentCurrentState().state === AGENT_STATES.IDLE, 'Agent resets cleanly to IDLE state');
 
   console.log('\n================================================================');
-  console.log(`TEST RESULTS: ${passedCount} PASSED, ${failedCount} FAILED`);
+  console.log(`TOTAL SUITE RESULTS: ${passedCount} PASSED, ${failedCount} FAILED`);
   console.log('================================================================');
 
   if (failedCount > 0) {

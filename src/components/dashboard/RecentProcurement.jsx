@@ -8,7 +8,7 @@ import {
 import { Badge } from '../common/Badge';
 import { useAuth } from '../../context/useAuth';
 
-export const RecentProcurement = () => {
+export const RecentProcurement = ({ onNavigateToProcurement }) => {
   const { userData, addProcurement, currentUser } = useAuth();
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -16,6 +16,7 @@ export const RecentProcurement = () => {
   const [formData, setFormData] = useState({
     item: '',
     department: 'Engineering',
+    quantity: '1',
     amount: '',
     vendor: '',
     category: 'IT',
@@ -27,10 +28,19 @@ export const RecentProcurement = () => {
     e.preventDefault();
     if (!formData.item.trim() || !formData.amount) return;
 
+    const qty = Math.max(1, Number(formData.quantity) || 1);
+    const total = Number(formData.amount);
+    const unitPrice = Math.round(total / qty);
+
     addProcurement({
       item: formData.item.trim(),
-      department: formData.department,
-      totalAmount: Number(formData.amount),
+      department: formData.department.trim() || 'General',
+      quantity: qty,
+      unitPrice,
+      totalAmount: total,
+      estimatedBudget: total,
+      historicalBenchmark: total,
+      unitBenchmark: unitPrice,
       vendor: formData.vendor.trim() || 'Direct Supplier',
       category: formData.category,
     });
@@ -38,6 +48,7 @@ export const RecentProcurement = () => {
     setFormData({
       item: '',
       department: 'Engineering',
+      quantity: '1',
       amount: '',
       vendor: '',
       category: 'IT',
@@ -73,7 +84,17 @@ export const RecentProcurement = () => {
           </div>
         </div>
 
-        <div className="table-header-controls">
+        <div className="table-header-controls" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {onNavigateToProcurement && (
+            <button
+              type="button"
+              className="btn-filter-clear"
+              style={{ padding: '6px 12px', fontSize: '12px' }}
+              onClick={onNavigateToProcurement}
+            >
+              <span>View All in Procurement &rarr;</span>
+            </button>
+          )}
           <button
             type="button"
             className="btn-add-record"
@@ -215,17 +236,29 @@ export const RecentProcurement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Total Amount (₹ INR)</label>
+                  <label className="form-label">Quantity</label>
                   <input
                     type="number"
                     className="form-input"
-                    placeholder="e.g. 500000"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    required
+                    placeholder="1"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                     min="1"
                   />
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Total Amount (₹ INR)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="e.g. 500000"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  required
+                  min="1"
+                />
               </div>
 
               <div className="form-row-2col">

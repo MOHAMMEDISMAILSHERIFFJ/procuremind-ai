@@ -11,6 +11,9 @@ import {
   addSubscription,
   addInvoice,
   createDecisionFromInsight,
+  updateDecisionStatus,
+  updateProcurementRequestStatus,
+  resolveInsight,
   loadDemoData,
   clearProcurementData,
 } from '../services/dataService';
@@ -254,6 +257,27 @@ export function AuthProvider({ children }) {
     setUserData({ ...empty });
   };
 
+  const updateDecisionStatusAction = (decisionId, newStatus, outcomeData) => {
+    if (!currentUser) return;
+    const updated = updateDecisionStatus(currentUser.id, decisionId, newStatus, outcomeData);
+    setUserData({ ...updated });
+    return updated;
+  };
+
+  const updateProcurementStatusAction = (reqId, newStatus, statusVariant) => {
+    if (!currentUser) return;
+    const updated = updateProcurementRequestStatus(currentUser.id, reqId, newStatus, statusVariant);
+    setUserData({ ...updated });
+    return updated;
+  };
+
+  const resolveInsightAction = (insightId, resolutionType, notes) => {
+    if (!currentUser) return;
+    const updated = resolveInsight(currentUser.id, insightId, resolutionType, notes);
+    setUserData({ ...updated });
+    return updated;
+  };
+
   const value = {
     currentUser,
     isAuthenticated: !!currentUser,
@@ -270,9 +294,13 @@ export function AuthProvider({ children }) {
     addInvoice:                 addInvoiceAction,
     createDecisionFromInsight:  createDecisionFromInsightAction,
     addDecision:                createDecisionFromInsightAction,
+    updateDecisionStatus:       updateDecisionStatusAction,
+    updateProcurementStatus:    updateProcurementStatusAction,
+    resolveInsight:             resolveInsightAction,
     loadDemoData:               loadDemoDataAction,
     clearData:                  clearDataAction,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+

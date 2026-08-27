@@ -11,8 +11,8 @@ import {
 import { Badge } from '../common/Badge';
 import { useAuth } from '../../context/useAuth';
 
-export const AiInsights = () => {
-  const { metrics, currentUser, createDecisionFromInsight } = useAuth();
+export const AiInsights = ({ onNavigateToAnalysis }) => {
+  const { metrics, currentUser, userData, createDecisionFromInsight } = useAuth();
   const [selectedInsight, setSelectedInsight] = useState(null);
   const [actionSuccessId, setActionSuccessId] = useState(null);
 
@@ -275,13 +275,31 @@ export const AiInsights = () => {
                 >
                   Close
                 </button>
+                {onNavigateToAnalysis && (
+                  <button
+                    type="button"
+                    className="btn-decision-negotiate"
+                    style={{ padding: '8px 14px' }}
+                    onClick={() => {
+                      const ins = selectedInsight;
+                      setSelectedInsight(null);
+                      onNavigateToAnalysis(ins);
+                    }}
+                  >
+                    <span>Open Deep Dive in AI Analysis &rarr;</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-login-submit"
                   onClick={() => handleTakeAction(selectedInsight)}
                 >
                   <SparklesIcon size={14} />
-                  <span>Create Decision / Take Action</span>
+                  <span>
+                    {(userData?.decisions || []).some(d => d.relatedInsightId === selectedInsight.id || d.decision === selectedInsight.title)
+                      ? '✓ Decision Logged'
+                      : 'Create Formal Decision'}
+                  </span>
                 </button>
               </div>
             </div>

@@ -10,12 +10,13 @@ import {
 } from '../icons/Icons';
 import { useAuth } from '../../context/useAuth';
 
-export const KpiCards = () => {
+export const KpiCards = ({ onNavigateToTab }) => {
   const { metrics, currentUser } = useAuth();
 
   const cards = [
     {
       id: 'total-spend',
+      targetTab: 'procurement',
       title: 'TOTAL SPEND',
       value: metrics.totalSpendFormatted,
       supportingText: metrics.totalSpendValue > 0
@@ -32,6 +33,7 @@ export const KpiCards = () => {
     },
     {
       id: 'potential-savings',
+      targetTab: 'ai-analysis',
       title: 'POTENTIAL SAVINGS',
       value: metrics.potentialSavingsFormatted,
       supportingText: metrics.potentialSavingsValue > 0
@@ -52,6 +54,7 @@ export const KpiCards = () => {
     },
     {
       id: 'risk-alerts',
+      targetTab: 'ai-analysis',
       title: 'RISK ALERTS',
       value: String(metrics.riskAlertsCount),
       supportingText: metrics.riskAlertsCount > 0
@@ -72,6 +75,7 @@ export const KpiCards = () => {
     },
     {
       id: 'pending-decisions',
+      targetTab: 'decisions',
       title: 'PENDING DECISIONS',
       value: String(metrics.pendingDecisionsCount),
       supportingText: metrics.pendingDecisionsCount > 0
@@ -93,7 +97,13 @@ export const KpiCards = () => {
       <div className="section-storytelling-tag">03 • SPEND &amp; SAVINGS LEDGER</div>
       <section className="kpi-grid" aria-label="Key Performance Indicators">
         {cards.map((metric) => (
-          <div key={metric.id} className="kpi-card">
+          <div
+            key={metric.id}
+            className="kpi-card"
+            style={{ cursor: onNavigateToTab ? 'pointer' : undefined }}
+            onClick={() => onNavigateToTab && onNavigateToTab(metric.targetTab)}
+            title={onNavigateToTab ? `Open ${metric.targetTab} module` : undefined}
+          >
             <div className="kpi-card-header">
               <span className="kpi-card-title">{metric.title}</span>
               <div className={`kpi-icon-wrapper kpi-icon-${metric.indicatorType}`}>

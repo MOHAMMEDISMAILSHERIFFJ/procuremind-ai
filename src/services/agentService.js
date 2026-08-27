@@ -569,11 +569,12 @@ export async function executeAutonomousAgent(prompt, options = {}) {
       aiNegotiationStrategy: negotiationSim.strategyPoints || [],
     });
 
-    // 2. Automatically create a pending decision record
+    // 2. Automatically create a pending decision record (Deduplicated)
     let createdDecision = null;
+    const latestReq = (updatedDataWithProc.procurementRequests || [])[0];
     if (variancePct > 0 || potentialSaving > 0) {
       const decisionInsight = {
-        id: `ins_auto_${Date.now()}`,
+        id: `ins_auto_${latestReq?.id || Date.now()}`,
         title: `NEGOTIATE BEFORE APPROVAL: ${parsedReq.item}`,
         description: `Quotation is ${variancePct}% above historical rate benchmark. Recommended counter-offer of ${negotiationSim.formattedTarget}.`,
         recommendation: `Issue counter-offer of ${negotiationSim.formattedTarget} to ${parsedReq.vendor} with Net-30 payment terms.`,
@@ -581,9 +582,10 @@ export async function executeAutonomousAgent(prompt, options = {}) {
         formattedImpact: `₹${(potentialSaving / 100000).toFixed(2)}L`,
         type: 'savings',
         severity: riskLevel.toLowerCase(),
+        relatedRecords: [latestReq?.id].filter(Boolean),
       };
       const dataWithDecision = createDecisionFromInsight(userId, decisionInsight);
-      createdDecision = (dataWithDecision.decisions || [])[0];
+      createdDecision = (dataWithDecision.decisions || []).find((d) => d.relatedInsightId === decisionInsight.id) || (dataWithDecision.decisions || [])[0];
     }
 
     // 3. Trigger full intelligence recalculation

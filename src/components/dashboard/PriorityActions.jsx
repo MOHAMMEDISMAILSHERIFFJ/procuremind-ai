@@ -9,9 +9,11 @@ import {
 import { Badge } from '../common/Badge';
 import { useAuth } from '../../context/useAuth';
 
-export const PriorityActions = () => {
-  const { metrics, currentUser } = useAuth();
+export const PriorityActions = ({ onNavigateToTab }) => {
+  const { metrics, currentUser, createDecisionFromInsight } = useAuth();
   const [completedActions, setCompletedActions] = useState([]);
+  const [selectedActionModal, setSelectedActionModal] = useState(null);
+  const [actionSuccess, setActionSuccess] = useState(null);
 
   const actions = metrics.priorityActionsList || [];
 
@@ -19,6 +21,21 @@ export const PriorityActions = () => {
     setCompletedActions((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const handleExecuteAction = (item) => {
+    if (item.insightRef && createDecisionFromInsight) {
+      createDecisionFromInsight(item.insightRef);
+      setActionSuccess(item.id);
+      setCompletedActions((prev) => [...new Set([...prev, item.id])]);
+      setTimeout(() => {
+        setActionSuccess(null);
+        setSelectedActionModal(null);
+      }, 2000);
+    } else {
+      toggleAction(item.id);
+      setSelectedActionModal(null);
+    }
   };
 
   const getPriorityBadge = (priority, variant) => {
@@ -115,9 +132,9 @@ export const PriorityActions = () => {
                     <button
                       type="button"
                       className="btn-priority-action"
-                      onClick={() => alert(`Opening workflow: ${item.title}`)}
+                      onClick={() => setSelectedActionModal(item)}
                     >
-                      <span>{item.actionLabel}</span>
+                      <span>{isCompleted ? '✓ Completed' : item.actionLabel}</span>
                       <ChevronRightIcon size={14} />
                     </button>
                   </div>
@@ -137,6 +154,73 @@ export const PriorityActions = () => {
           </div>
         )}
       </div>
+
+      {/* Priority Action Execution Modal */}
+      {selectedActionModal && (
+        <div className="modal-backdrop" onClick={() => setSelectedActionModal(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Executive Action: {selectedActionModal.actionLabel}</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setSelectedActionModal(null)}>&times;</button>
+            </div>
+            <div className="modal-form" style={{ padding: '16px 20px 20px' }}>
+              <div style={{ marginBottom: 14 }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+                  {selectedActionModal.title}
+                </h4>
+                <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.5 }}>
+                  {selectedActionModal.subtitle}
+                </p>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 4 }}>
+                  <span>Target Department:</span>
+                  <strong style={{ color: '#0f172a' }}>{selectedActionModal.department}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b' }}>
+                  <span>Execution Timeline:</span>
+                  <strong style={{ color: '#0f172a' }}>{selectedActionModal.eta}</strong>
+                </div>
+              </div>
+
+              {actionSuccess === selectedActionModal.id && (
+                <div className="demo-load-success-banner" style={{ marginBottom: 12 }}>
+                  <span>✓ Action executed! Logged into Decisions &amp; Outcomes ledger.</span>
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button type="button" className="btn-register-back" onClick={() => setSelectedActionModal(null)}>
+                  Cancel
+                </button>
+                {onNavigateToTab && (
+                  <button
+                    type="button"
+                    className="btn-decision-negotiate"
+                    style={{ padding: '8px 14px' }}
+                    onClick={() => {
+                      setSelectedActionModal(null);
+                      onNavigateToTab('decisions');
+                    }}
+                  >
+                    <span>View Decisions &rarr;</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-login-submit"
+                  onClick={() => handleExecuteAction(selectedActionModal)}
+                >
+                  <CheckSquareIcon size={14} />
+                  <span>Execute {selectedActionModal.actionLabel}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

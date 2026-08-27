@@ -44,7 +44,7 @@ function DashboardView({ onNavigateToTab }) {
   return (
     <main className="dashboard-content" id="main-content">
       {/* KPI Cards — live from user data */}
-      <KpiCards />
+      <KpiCards onNavigateToTab={onNavigateToTab} />
 
       {/* ── Empty State / Demo Data Offer ─────────────────────────────── */}
       {hasNoData && !demoLoaded && (
@@ -61,16 +61,16 @@ function DashboardView({ onNavigateToTab }) {
       <ProcureMindScene />
 
       {/* AI Insights — live from user data */}
-      <AiInsights />
+      <AiInsights onNavigateToAnalysis={(ins) => onNavigateToTab && onNavigateToTab('ai-analysis', { insightId: ins?.id })} />
 
       {/* Spending Overview & Priority Actions */}
       <div className="dashboard-mid-grid">
         <SpendingChart />
-        <PriorityActions />
+        <PriorityActions onNavigateToTab={onNavigateToTab} />
       </div>
 
       {/* Recent Procurement Requisitions */}
-      <RecentProcurement />
+      <RecentProcurement onNavigateToProcurement={() => onNavigateToTab && onNavigateToTab('procurement')} />
 
       {/* Product Message */}
       <ProductMessage />
@@ -201,6 +201,14 @@ function AppContent() {
   const { isAuthenticated } = useAuth();
   const [authView, setAuthView] = useState('login'); // 'login' | 'register'
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedInsightId, setSelectedInsightId] = useState(null);
+
+  const handleNavigate = (tab, context = {}) => {
+    setActiveTab(tab);
+    if (context.insightId) {
+      setSelectedInsightId(context.insightId);
+    }
+  };
 
   // ── Not authenticated → show Login or Register ───────────────────────────
   if (!isAuthenticated) {
@@ -230,15 +238,15 @@ function AppContent() {
   // ── Authenticated → show dashboard shell with sidebar ────────────────────
   const renderView = () => {
     switch (activeTab) {
-      case 'procurement':    return <ProcurementModule />;
-      case 'ai-analysis':   return <AiAnalysisModule />;
-      case 'vendors':       return <VendorsModule />;
-      case 'subscriptions': return <SubscriptionsModule />;
-      case 'decisions':     return <DecisionsModule />;
+      case 'procurement':    return <ProcurementModule onNavigateToTab={handleNavigate} />;
+      case 'ai-analysis':   return <AiAnalysisModule initialInsightId={selectedInsightId} onClearInitialInsight={() => setSelectedInsightId(null)} onNavigateToTab={handleNavigate} />;
+      case 'vendors':       return <VendorsModule onNavigateToTab={handleNavigate} />;
+      case 'subscriptions': return <SubscriptionsModule onNavigateToTab={handleNavigate} />;
+      case 'decisions':     return <DecisionsModule onNavigateToTab={handleNavigate} />;
       case 'settings':      return <SettingsView />;
       case 'help':          return <HelpView />;
       case 'dashboard':
-      default:              return <DashboardView onNavigateToTab={setActiveTab} />;
+      default:              return <DashboardView onNavigateToTab={handleNavigate} />;
     }
   };
 
@@ -246,9 +254,9 @@ function AppContent() {
     <div className="app-viewport-container">
       <ProcureMindBackground3D />
       <div className="app-layout app-foreground-layer">
-        <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} />
+        <Sidebar activeTab={activeTab} onSelectTab={(tab) => handleNavigate(tab)} />
         <div className="main-wrapper">
-          <Header />
+          <Header onNavigateToTab={handleNavigate} />
           {renderView()}
         </div>
       </div>

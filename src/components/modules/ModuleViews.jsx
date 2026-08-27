@@ -1,5 +1,5 @@
 // src/components/modules/ModuleViews.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ProcurementIcon,
   AiAnalysisIcon,
@@ -8,9 +8,14 @@ import {
   DecisionsIcon,
   SparklesIcon,
   PlusIcon,
+  CheckCircleIcon,
+  ShieldAlertIcon,
+  TrendingUpIcon,
+  ChevronRightIcon,
 } from '../icons/Icons';
 import { Badge } from '../common/Badge';
 import { useAuth } from '../../context/useAuth';
+import { searchRecords } from '../../services/dataService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers
@@ -84,16 +89,47 @@ export const ModuleContainer = ({ title, subtitle, icon, badge, onAddAction, add
 export const ProcurementModule = () => {
   const { userData, addProcurement } = useAuth();
   const [activeTab, setActiveTab] = useState('requests');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     item: '', category: 'IT', department: '', quantity: '1',
     estimatedBudget: '', purchaseIntent: '', requiredDate: '', vendor: '',
   });
 
-  const procReqs   = userData?.procurementRequests || userData?.procurements || [];
-  const purchaseOrders = userData?.purchaseOrders || [];
-  const invoices   = userData?.invoices || [];
-  const expenses   = userData?.expenses || [];
+  const rawProcReqs       = userData?.procurementRequests || userData?.procurements || [];
+  const rawPurchaseOrders = userData?.purchaseOrders || [];
+  const rawInvoices       = userData?.invoices || [];
+  const rawExpenses       = userData?.expenses || [];
+
+  // Filtered lists
+  const procReqs = useMemo(() => {
+    const filters = {};
+    if (categoryFilter !== 'all') filters.category = categoryFilter;
+    if (statusFilter !== 'all') filters.status = statusFilter;
+    const list = userData?.procurementRequests || userData?.procurements || [];
+    return searchRecords(list, searchQuery, ['id', 'item', 'request', 'vendor', 'category', 'department', 'aiRecommendation', 'status', 'totalAmount', 'date'], filters);
+  }, [userData?.procurementRequests, userData?.procurements, searchQuery, categoryFilter, statusFilter]);
+
+  const purchaseOrders = useMemo(() => {
+    const filters = {};
+    if (categoryFilter !== 'all') filters.category = categoryFilter;
+    const list = userData?.purchaseOrders || [];
+    return searchRecords(list, searchQuery, ['id', 'description', 'vendorName', 'category', 'status', 'totalAmount'], filters);
+  }, [userData?.purchaseOrders, searchQuery, categoryFilter]);
+
+  const invoices = useMemo(() => {
+    const list = userData?.invoices || [];
+    return searchRecords(list, searchQuery, ['id', 'vendorName', 'vendor', 'description', 'status', 'amount', 'aiFlag']);
+  }, [userData?.invoices, searchQuery]);
+
+  const expenses = useMemo(() => {
+    const filters = {};
+    if (categoryFilter !== 'all') filters.category = categoryFilter;
+    const list = userData?.expenses || [];
+    return searchRecords(list, searchQuery, ['id', 'description', 'vendorName', 'category', 'department', 'amount', 'date'], filters);
+  }, [userData?.expenses, searchQuery, categoryFilter]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -114,10 +150,10 @@ export const ProcurementModule = () => {
   };
 
   const TABS = [
-    { key: 'requests',  label: 'Procurement Requests', count: procReqs.length },
-    { key: 'pos',       label: 'Purchase Orders',      count: purchaseOrders.length },
-    { key: 'invoices',  label: 'Invoices',             count: invoices.length },
-    { key: 'expenses',  label: 'Expenses',             count: expenses.length },
+    { key: 'requests',  label: 'Procurement Requests', count: rawProcReqs.length },
+    { key: 'pos',       label: 'Purchase Orders',      count: rawPurchaseOrders.length },
+    { key: 'invoices',  label: 'Invoices',             count: rawInvoices.length },
+    { key: 'expenses',  label: 'Expenses',             count: rawExpenses.length },
   ];
 
   return (
@@ -135,7 +171,12 @@ export const ProcurementModule = () => {
             key={t.key}
             type="button"
             className={`module-tab-btn ${activeTab === t.key ? 'active' : ''}`}
-            onClick={() => setActiveTab(t.key)}
+            onClick={() => {
+              setActiveTab(t.key);
+              setSearchQuery('');
+              setCategoryFilter('all');
+              setStatusFilter('all');
+            }}
           >
             {t.label}
             <span className="tab-count-badge">{t.count}</span>
@@ -143,10 +184,81 @@ export const ProcurementModule = () => {
         ))}
       </div>
 
+      {/* ── Search & Filter Toolbar ── */}
+      <div className="module-filter-toolbar">
+        <div className="module-filter-left">
+          <div className="module-search-wrapper">
+            <span className="module-search-icon">🔍</span>
+            <input
+              type="text"
+              className="module-search-input"
+              placeholder={`Search ${activeTab}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          {(activeTab === 'requests' || activeTab === 'pos' || activeTab === 'expenses') && (
+            <select
+              className="module-select-filter"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="all">All Categories</option>
+              <option value="IT">IT Hardware</option>
+              <option value="Software">Software & SaaS</option>
+              <option value="Cloud Services">Cloud Services</option>
+              <option value="Operations">Operations</option>
+              <option value="Engineering Equipment">Engineering</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Travel">Travel</option>
+              <option value="General">General</option>
+            </select>
+          )}
+
+          {activeTab === 'requests' && (
+            <select
+              className="module-select-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          )}
+
+          {(searchQuery || categoryFilter !== 'all' || statusFilter !== 'all') && (
+            <button
+              type="button"
+              className="btn-filter-clear"
+              onClick={() => {
+                setSearchQuery('');
+                setCategoryFilter('all');
+                setStatusFilter('all');
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+
+        <div className="module-filter-right">
+          <span className="filter-count-label">
+            Showing {
+              activeTab === 'requests' ? procReqs.length :
+              activeTab === 'pos' ? purchaseOrders.length :
+              activeTab === 'invoices' ? invoices.length : expenses.length
+            } record(s)
+          </span>
+        </div>
+      </div>
+
       {/* ── Procurement Requests ── */}
       {activeTab === 'requests' && (
         <div className="card module-table-card">
-          {procReqs.length === 0 ? (
+          {rawProcReqs.length === 0 ? (
             <EmptyState
               icon={<ProcurementIcon size={28} />}
               title="No procurement requests yet"
@@ -154,13 +266,17 @@ export const ProcurementModule = () => {
               action="Create Procurement Request"
               onAction={() => setShowModal(true)}
             />
+          ) : procReqs.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+              No procurement requests match the search query "{searchQuery}".
+            </div>
           ) : (
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>ID</th><th>Item / Service</th><th>Category</th>
-                    <th>Vendor</th><th>Amount</th><th>Status</th>
+                    <th>Vendor</th><th>Qty</th><th>Amount</th><th>Status</th>
                     <th>AI Recommendation</th><th>Date</th>
                   </tr>
                 </thead>
@@ -171,6 +287,7 @@ export const ProcurementModule = () => {
                       <td className="table-primary">{req.item || req.request}</td>
                       <td><span className="cat-chip">{req.category}</span></td>
                       <td className="table-secondary">{req.vendor || '—'}</td>
+                      <td className="table-secondary center">{req.quantity || 1}</td>
                       <td className="table-amount">{req.formattedAmount || formatCurrency(req.totalAmount)}</td>
                       <td>
                         <Badge variant={req.statusVariant || 'info'}>{req.status}</Badge>
@@ -195,12 +312,16 @@ export const ProcurementModule = () => {
       {/* ── Purchase Orders ── */}
       {activeTab === 'pos' && (
         <div className="card module-table-card">
-          {purchaseOrders.length === 0 ? (
+          {rawPurchaseOrders.length === 0 ? (
             <EmptyState
               icon={<ProcurementIcon size={28} />}
               title="No purchase orders yet"
-              subtitle="Purchase orders are created when procurement requests are approved."
+              subtitle="Purchase orders are created automatically when procurement requests are approved."
             />
+          ) : purchaseOrders.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+              No purchase orders match your filters.
+            </div>
           ) : (
             <div className="table-responsive">
               <table className="data-table">
@@ -218,9 +339,9 @@ export const ProcurementModule = () => {
                       <td className="table-primary">{po.description}</td>
                       <td className="table-secondary">{po.vendorName}</td>
                       <td><span className="cat-chip">{po.category}</span></td>
-                      <td className="table-secondary">{po.quantity}</td>
+                      <td className="table-secondary center">{po.quantity || 1}</td>
                       <td className="table-amount">{po.formattedAmount || formatCurrency(po.totalAmount)}</td>
-                      <td><Badge variant={po.statusVariant || 'info'}>{po.status}</Badge></td>
+                      <td><Badge variant={po.statusVariant || 'approved'}>{po.status}</Badge></td>
                       <td className="table-secondary">{po.requiredDate || '—'}</td>
                     </tr>
                   ))}
@@ -234,12 +355,16 @@ export const ProcurementModule = () => {
       {/* ── Invoices ── */}
       {activeTab === 'invoices' && (
         <div className="card module-table-card">
-          {invoices.length === 0 ? (
+          {rawInvoices.length === 0 ? (
             <EmptyState
               icon={<ProcurementIcon size={28} />}
               title="No invoices yet"
               subtitle="Invoices will appear here once vendors submit billing for approved purchase orders."
             />
+          ) : invoices.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+              No invoices match your filters.
+            </div>
           ) : (
             <div className="table-responsive">
               <table className="data-table">
@@ -257,7 +382,7 @@ export const ProcurementModule = () => {
                       <td className="table-secondary">{inv.description}</td>
                       <td className="table-amount">{inv.formattedAmount || formatCurrency(inv.amount)}</td>
                       <td><Badge variant={inv.statusVariant || 'info'}>{inv.status}</Badge></td>
-                      <td className="table-secondary">{inv.dueDate || '—'}</td>
+                      <td className="table-secondary">{inv.dueDate || inv.invoiceDate || '—'}</td>
                       <td>
                         {inv.aiFlag && (
                           <span className="ai-flag-chip">⚠ {inv.aiFlag}</span>
@@ -275,12 +400,16 @@ export const ProcurementModule = () => {
       {/* ── Expenses ── */}
       {activeTab === 'expenses' && (
         <div className="card module-table-card">
-          {expenses.length === 0 ? (
+          {rawExpenses.length === 0 ? (
             <EmptyState
               icon={<ProcurementIcon size={28} />}
               title="No expenses recorded yet"
               subtitle="Expenses are recorded when procurement requests or invoices are processed."
             />
+          ) : expenses.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+              No expenses match your filters.
+            </div>
           ) : (
             <div className="table-responsive">
               <table className="data-table">
@@ -390,32 +519,66 @@ export const ProcurementModule = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. AI Analysis Module
+// 2. AI Analysis Module — Mutually Exclusive Tabs & Non-overlapping Counts
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const AiAnalysisModule = () => {
-  const { metrics, createDecisionFromInsight } = useAuth();
+export const AiAnalysisModule = ({ initialInsightId, onNavigateToTab }) => {
+  const { metrics, userData, createDecisionFromInsight, resolveInsight } = useAuth();
   const [filterType, setFilterType] = useState('all');
-  const [selectedInsight, setSelectedInsight] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const allInsights = useMemo(() => metrics.aiInsightsList || [], [metrics.aiInsightsList]);
+  const [selectedInsight, setSelectedInsight] = useState(() => {
+    if (initialInsightId) {
+      return (metrics.aiInsightsList || []).find((i) => i.id === initialInsightId) || null;
+    }
+    return null;
+  });
   const [actionSuccessId, setActionSuccessId] = useState(null);
 
-  const allInsights = metrics.aiInsightsList || [];
+  const existingDecisions = userData?.decisions || [];
   const hasData = allInsights.length > 0;
 
-  const filteredInsights = filterType === 'all'
-    ? allInsights
-    : allInsights.filter((ins) => {
-        if (filterType === 'risk') return ins.severity === 'high' || ins.type === 'vendor_alert' || ins.type === 'early_warning';
-        if (filterType === 'price_dup') return ins.type === 'price_anomaly' || ins.type === 'duplicate' || ins.type === 'budget_deviation';
-        if (filterType === 'savings') return ins.type === 'savings' || ins.severity === 'savings';
-        return true;
-      });
+  const priceDupInsights = useMemo(() => {
+    return (metrics.aiInsightsList || []).filter((ins) => ins.type === 'price_anomaly' || ins.type === 'duplicate' || ins.type === 'budget_deviation');
+  }, [metrics.aiInsightsList]);
+
+  const riskInsights = useMemo(() => {
+    return (metrics.aiInsightsList || []).filter((ins) => ins.type === 'vendor_alert' || ins.type === 'vendor_risk' || ins.type === 'early_warning' || ins.type === 'spending_anomaly');
+  }, [metrics.aiInsightsList]);
+
+  const savingsInsights = useMemo(() => {
+    return (metrics.aiInsightsList || []).filter((ins) => ins.type === 'savings');
+  }, [metrics.aiInsightsList]);
+
+  // Tab-filtered insights
+  const tabInsights = useMemo(() => {
+    if (filterType === 'price_dup') return priceDupInsights;
+    if (filterType === 'risk') return riskInsights;
+    if (filterType === 'savings') return savingsInsights;
+    return metrics.aiInsightsList || [];
+  }, [filterType, metrics.aiInsightsList, priceDupInsights, riskInsights, savingsInsights]);
+
+  // Search-filtered insights
+  const filteredInsights = useMemo(() => {
+    return searchRecords(tabInsights, searchQuery, ['id', 'title', 'description', 'category', 'severity', 'type', 'formattedImpact', 'recommendation']);
+  }, [tabInsights, searchQuery]);
+
+  const isDecisionCreated = (ins) => {
+    return existingDecisions.some((d) => (d.relatedInsightId && d.relatedInsightId === ins.id) || d.decision === ins.title);
+  };
 
   const handleTakeAction = (insight) => {
     if (createDecisionFromInsight) {
       createDecisionFromInsight(insight);
       setActionSuccessId(insight.id);
       setTimeout(() => setActionSuccessId(null), 3000);
+    }
+  };
+
+  const handleResolveDuplicate = (insight, resolutionType) => {
+    if (resolveInsight) {
+      resolveInsight(insight.id, resolutionType, `User resolved duplicate as ${resolutionType}`);
+      setSelectedInsight(null);
     }
   };
 
@@ -435,7 +598,7 @@ export const AiAnalysisModule = () => {
           />
           <div className="ai-feed-footer-note" style={{ marginTop: 16 }}>
             <SparklesIcon size={12} />
-            <span>Connect real AI API via <code>aiService.js</code> when your team's model is ready. Deterministic analysis runs live on your data.</span>
+            <span>Deterministic analysis runs live on your data. Connect real AI API via <code>aiService.js</code> when ready.</span>
           </div>
         </div>
       ) : (
@@ -460,7 +623,7 @@ export const AiAnalysisModule = () => {
             </div>
           </div>
 
-          {/* Filter Tab Bar */}
+          {/* Filter Tab Bar — Mutually Exclusive Badge Counts */}
           <div className="module-tab-bar" style={{ marginTop: 4 }}>
             <button
               type="button"
@@ -474,86 +637,300 @@ export const AiAnalysisModule = () => {
               className={`module-tab-btn ${filterType === 'price_dup' ? 'active' : ''}`}
               onClick={() => setFilterType('price_dup')}
             >
-              Price &amp; Duplicates <span className="tab-count-badge">{allInsights.filter(i => i.type === 'price_anomaly' || i.type === 'duplicate' || i.type === 'budget_deviation').length}</span>
+              Price &amp; Duplicates <span className="tab-count-badge">{priceDupInsights.length}</span>
             </button>
             <button
               type="button"
               className={`module-tab-btn ${filterType === 'risk' ? 'active' : ''}`}
               onClick={() => setFilterType('risk')}
             >
-              Vendor &amp; Contract Risks <span className="tab-count-badge">{allInsights.filter(i => i.severity === 'high' || i.type === 'vendor_alert' || i.type === 'early_warning').length}</span>
+              Vendor &amp; Contract Risks <span className="tab-count-badge">{riskInsights.length}</span>
             </button>
             <button
               type="button"
               className={`module-tab-btn ${filterType === 'savings' ? 'active' : ''}`}
               onClick={() => setFilterType('savings')}
             >
-              Savings Opportunities <span className="tab-count-badge">{allInsights.filter(i => i.type === 'savings' || i.severity === 'savings').length}</span>
+              Savings Opportunities <span className="tab-count-badge">{savingsInsights.length}</span>
             </button>
+          </div>
+
+          {/* Search Toolbar */}
+          <div className="module-filter-toolbar">
+            <div className="module-filter-left">
+              <div className="module-search-wrapper">
+                <span className="module-search-icon">🔍</span>
+                <input
+                  type="text"
+                  className="module-search-input"
+                  placeholder="Search findings by keyword, vendor, category..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="btn-filter-clear"
+                  onClick={() => setSearchQuery('')}
+                >
+                  Clear Search
+                </button>
+              )}
+            </div>
+            <div className="module-filter-right">
+              <span className="filter-count-label">
+                Showing {filteredInsights.length} of {tabInsights.length} findings
+              </span>
+            </div>
           </div>
 
           {/* Insights List */}
           <div className="card module-table-card">
-            <div className="analysis-insight-list">
-              {filteredInsights.map((ins) => (
-                <div
-                  key={ins.id}
-                  className={`analysis-insight-item risk-${ins.severity || 'info'}`}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedInsight(selectedInsight?.id === ins.id ? null : ins)}
-                >
-                  <div className={`insight-severity-dot ${ins.type === 'savings' ? 'savings' : ''}`} />
-                  <div className="insight-content">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <p className="insight-title" style={{ margin: 0 }}>{ins.title}</p>
-                      <Badge variant={ins.severity === 'high' ? 'risk-high' : ins.type === 'savings' ? 'savings' : 'warning'} size="sm">
-                        {ins.type ? ins.type.replace('_', ' ').toUpperCase() : 'INSIGHT'}
-                      </Badge>
-                    </div>
-                    <p className="insight-desc">{ins.description}</p>
-                    {ins.evidence && ins.evidence.length > 0 && (
-                      <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12, color: '#475569' }}>
-                        {ins.evidence.map((ev, idx) => (
-                          <li key={idx}>{ev}</li>
-                        ))}
-                      </ul>
-                    )}
-                    {ins.recommendation && (
-                      <p style={{ margin: '6px 0 0', fontSize: 12, color: '#065F46', fontWeight: 500 }}>
-                        <strong>Recommendation:</strong> {ins.recommendation}
-                      </p>
-                    )}
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: 16 }}>
-                    {ins.financialImpact > 0 && (
-                      <div className="insight-amount" style={{ color: ins.type === 'savings' ? '#10B981' : '#1E3A8A' }}>
-                        {ins.formattedImpact || formatCurrency(ins.financialImpact)}
+            {filteredInsights.length === 0 ? (
+              <div style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
+                No findings match the search query "{searchQuery}".
+              </div>
+            ) : (
+              <div className="analysis-insight-list">
+                {filteredInsights.map((ins) => {
+                  const hasDecision = isDecisionCreated(ins);
+                  return (
+                    <div
+                      key={ins.id}
+                      className={`analysis-insight-item risk-${ins.severity || 'info'}`}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedInsight(selectedInsight?.id === ins.id ? null : ins)}
+                    >
+                      <div className={`insight-severity-dot ${ins.type === 'savings' ? 'savings' : ''}`} />
+                      <div className="insight-content">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                          <p className="insight-title" style={{ margin: 0 }}>{ins.title}</p>
+                          <Badge variant={ins.severity === 'high' ? 'risk-high' : ins.type === 'savings' ? 'savings' : 'warning'} size="sm">
+                            {ins.type ? ins.type.replace('_', ' ').toUpperCase() : 'INSIGHT'}
+                          </Badge>
+                          {hasDecision && (
+                            <span className="nav-item-pill" style={{ background: '#ecfdf5', color: '#047857' }}>
+                              ✓ Decision Created
+                            </span>
+                          )}
+                        </div>
+                        <p className="insight-desc">{ins.description}</p>
+                        {ins.evidence && ins.evidence.length > 0 && (
+                          <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12, color: '#475569' }}>
+                            {ins.evidence.map((ev, idx) => (
+                              <li key={idx}>{ev}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {ins.recommendation && (
+                          <p style={{ margin: '6px 0 0', fontSize: 12, color: '#065F46', fontWeight: 500 }}>
+                            <strong>Recommendation:</strong> {ins.recommendation}
+                          </p>
+                        )}
                       </div>
-                    )}
-                    <span className="insight-confidence">{ins.confidence}</span>
-                    <div style={{ marginTop: 8 }}>
-                      <button
-                        type="button"
-                        className="btn-add-record"
-                        style={{ padding: '4px 10px', fontSize: 11 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTakeAction(ins);
-                        }}
-                      >
-                        <SparklesIcon size={12} />
-                        <span>Action</span>
-                      </button>
+                      <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: 16 }}>
+                        {ins.financialImpact > 0 && (
+                          <div className="insight-amount" style={{ color: ins.type === 'savings' ? '#10B981' : '#1E3A8A' }}>
+                            {ins.formattedImpact || formatCurrency(ins.financialImpact)}
+                          </div>
+                        )}
+                        <span className="insight-confidence">{ins.confidence}</span>
+                        <div style={{ marginTop: 8, display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-view-analysis"
+                            style={{ padding: '4px 9px', fontSize: 11, background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6, color: '#1e40af', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInsight(ins);
+                            }}
+                          >
+                            <span>View Analysis</span>
+                            <ChevronRightIcon size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-add-record"
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: 11,
+                              background: hasDecision ? '#f1f5f9' : undefined,
+                              color: hasDecision ? '#047857' : undefined,
+                              border: hasDecision ? '1px solid #a7f3d0' : undefined,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTakeAction(ins);
+                            }}
+                          >
+                            <SparklesIcon size={12} />
+                            <span>{hasDecision ? '✓ Decision Logged' : 'Take Action'}</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {actionSuccessId && (
             <div className="demo-load-success-banner" style={{ marginTop: 8 }}>
-              <span>Decision created from AI finding and added to Decisions &amp; Outcomes.</span>
+              <span>Decision created from AI finding and added to Decisions &amp; Outcomes for executive review.</span>
+            </div>
+          )}
+
+          {/* ── Detail Modal for AI Finding ── */}
+          {selectedInsight && (
+            <div className="modal-backdrop" onClick={() => setSelectedInsight(null)}>
+              <div
+                className="modal-card modal-card-analysis"
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: '640px' }}
+              >
+                <div className="modal-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="insight-card-icon-bubble" style={{ width: '28px', height: '28px' }}>
+                      {selectedInsight.type === 'savings' ? <TrendingUpIcon size={18} /> : <ShieldAlertIcon size={18} />}
+                    </div>
+                    <div>
+                      <h3 className="modal-title" style={{ fontSize: '15px', fontWeight: 700 }}>
+                        AI Finding Investigation: {selectedInsight.id}
+                      </h3>
+                      <span style={{ fontSize: '11px', color: '#64748B' }}>
+                        Type: {selectedInsight.type} &bull; Confidence: {selectedInsight.confidence}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="modal-close-btn"
+                    onClick={() => setSelectedInsight(null)}
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                <div className="modal-analysis-body">
+                  <div className="analysis-detail-header">
+                    <div>
+                      <h4 className="analysis-detail-title">{selectedInsight.title}</h4>
+                      <span className="analysis-detail-category">{selectedInsight.category}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <Badge variant={selectedInsight.severity === 'high' ? 'risk-high' : 'warning'}>
+                        {selectedInsight.severity ? selectedInsight.severity.toUpperCase() : 'AI ALERT'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="analysis-section-block">
+                    <span className="analysis-section-label">OBSERVED FINDING</span>
+                    <p className="analysis-section-text">{selectedInsight.description}</p>
+                  </div>
+
+                  {selectedInsight.evidence && selectedInsight.evidence.length > 0 && (
+                    <div className="analysis-section-block">
+                      <span className="analysis-section-label">EVIDENCE &amp; AUDIT TRAIL</span>
+                      <ul className="analysis-evidence-list">
+                        {selectedInsight.evidence.map((item, idx) => (
+                          <li key={idx} className="analysis-evidence-item">
+                            <span className="evidence-bullet">&bull;</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {selectedInsight.financialImpact > 0 && (
+                    <div className="analysis-section-block financial-impact-highlight">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="analysis-section-label" style={{ color: '#1E3A8A', margin: 0 }}>
+                          FINANCIAL EXPOSURE / POTENTIAL VALUE
+                        </span>
+                        <span className="analysis-impact-amount">
+                          {selectedInsight.formattedImpact || formatCurrency(selectedInsight.financialImpact)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="analysis-section-block recommendation-block">
+                    <span className="analysis-section-label" style={{ color: '#065F46' }}>
+                      RECOMMENDED ACTION
+                    </span>
+                    <p className="analysis-section-text" style={{ color: '#064E3B', fontWeight: 500 }}>
+                      {selectedInsight.recommendation}
+                    </p>
+                  </div>
+
+                  {/* Duplicate Resolution Options */}
+                  {selectedInsight.type === 'duplicate' && (
+                    <div className="analysis-section-block" style={{ background: '#fef2f2', border: '1px solid #fecdd3', borderRadius: 8, padding: 12 }}>
+                      <span className="analysis-section-label" style={{ color: '#991b1b' }}>
+                        RESOLVE DUPLICATE EXPOSURE
+                      </span>
+                      <p style={{ fontSize: 12, color: '#7f1d1d', margin: '4px 0 10px' }}>
+                        Choose a resolution action to update the ledger and dismiss this duplicate finding:
+                      </p>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="btn-decision-reject"
+                          style={{ padding: '6px 12px' }}
+                          onClick={() => handleResolveDuplicate(selectedInsight, 'held_duplicate')}
+                        >
+                          Hold &amp; Reject Duplicate
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-decision-approve"
+                          style={{ padding: '6px 12px' }}
+                          onClick={() => handleResolveDuplicate(selectedInsight, 'verified_legitimate')}
+                        >
+                          Mark as Verified Recurring Bill
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="modal-actions" style={{ marginTop: '20px' }}>
+                    <button
+                      type="button"
+                      className="btn-register-back"
+                      onClick={() => setSelectedInsight(null)}
+                    >
+                      Close
+                    </button>
+                    {onNavigateToTab && (
+                      <button
+                        type="button"
+                        className="btn-decision-negotiate"
+                        style={{ padding: '8px 14px' }}
+                        onClick={() => {
+                          setSelectedInsight(null);
+                          onNavigateToTab('decisions');
+                        }}
+                      >
+                        <span>Review Decisions &rarr;</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-login-submit"
+                      onClick={() => {
+                        handleTakeAction(selectedInsight);
+                      }}
+                    >
+                      <SparklesIcon size={14} />
+                      <span>{isDecisionCreated(selectedInsight) ? 'Decision Logged (Update)' : 'Create Formal Decision'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -568,10 +945,21 @@ export const AiAnalysisModule = () => {
 
 export const VendorsModule = () => {
   const { userData, addVendor } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [riskFilter, setRiskFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', category: '', contactEmail: '', country: 'India' });
 
-  const vendors = userData?.vendors || [];
+  const rawVendors = userData?.vendors || [];
+
+  const vendors = useMemo(() => {
+    const filters = {};
+    if (categoryFilter !== 'all') filters.category = categoryFilter;
+    if (riskFilter !== 'all') filters.riskVariant = riskFilter;
+    const list = userData?.vendors || [];
+    return searchRecords(list, searchQuery, ['id', 'name', 'category', 'contactEmail', 'country', 'status', 'aiFlag', 'totalSpend'], filters);
+  }, [userData?.vendors, searchQuery, categoryFilter, riskFilter]);
 
   const TREND_ICONS = { up: '↑', down: '↓', stable: '→' };
   const TREND_COLORS = { up: '#EF4444', down: '#10B981', stable: '#94A3B8' };
@@ -597,26 +985,77 @@ export const VendorsModule = () => {
       onAddAction={() => setShowModal(true)}
       addLabel="Add Vendor"
     >
+      {/* Search & Filter Toolbar */}
+      <div className="module-filter-toolbar">
+        <div className="module-filter-left">
+          <div className="module-search-wrapper">
+            <span className="module-search-icon">🔍</span>
+            <input
+              type="text"
+              className="module-search-input"
+              placeholder="Search vendors by name, email, category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <select
+            className="module-select-filter"
+            value={riskFilter}
+            onChange={(e) => setRiskFilter(e.target.value)}
+          >
+            <option value="all">All Risk Levels</option>
+            <option value="approved">Low Risk</option>
+            <option value="warning">Medium Risk</option>
+            <option value="flagged">High / Audit Risk</option>
+          </select>
+
+          {(searchQuery || categoryFilter !== 'all' || riskFilter !== 'all') && (
+            <button
+              type="button"
+              className="btn-filter-clear"
+              onClick={() => {
+                setSearchQuery('');
+                setCategoryFilter('all');
+                setRiskFilter('all');
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+
+        <div className="module-filter-right">
+          <span className="filter-count-label">
+            Showing {vendors.length} of {rawVendors.length} vendor(s)
+          </span>
+        </div>
+      </div>
+
       <div className="card module-table-card">
-        {vendors.length === 0 ? (
+        {rawVendors.length === 0 ? (
           <EmptyState
             icon={<VendorsIcon size={28} />}
             title="No vendors yet"
-            subtitle='Add vendors to your account or load demo procurement data to begin vendor intelligence analysis.'
+            subtitle="Add vendors to your account or load demo procurement data to begin vendor intelligence analysis."
             action="Add Your First Vendor"
             onAction={() => setShowModal(true)}
           />
+        ) : vendors.length === 0 ? (
+          <div style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
+            No vendors match the search query "{searchQuery}".
+          </div>
         ) : (
           <>
             <div className="vendor-summary-bar">
               <span className="vendor-summary-stat">
-                <strong>{vendors.length}</strong> vendors registered
+                <strong>{rawVendors.length}</strong> vendors registered
               </span>
               <span className="vendor-summary-stat">
-                <strong>{vendors.filter((v) => v.riskLevel >= 3 || v.riskVariant === 'flagged').length}</strong> high risk
+                <strong>{rawVendors.filter((v) => v.riskLevel >= 3 || v.riskVariant === 'flagged').length}</strong> high risk
               </span>
               <span className="vendor-summary-stat">
-                <strong>{vendors.filter((v) => v.status === 'Preferred').length}</strong> preferred
+                <strong>{rawVendors.filter((v) => v.status === 'Preferred').length}</strong> preferred
               </span>
             </div>
             <div className="table-responsive">
@@ -718,17 +1157,26 @@ export const VendorsModule = () => {
 
 export const SubscriptionsModule = () => {
   const { userData, addSubscription } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '', product: '', vendorName: '', department: '',
     seatsTotal: '', seatsActive: '', monthlyCost: '', renewalDate: '',
   });
 
-  const subscriptions = userData?.subscriptions || [];
+  const rawSubscriptions = userData?.subscriptions || [];
 
-  const totalMonthlyCost = subscriptions.reduce((acc, s) => acc + (Number(s.monthlyCost) || 0), 0);
-  const totalIdleSeats   = subscriptions.reduce((acc, s) => acc + (Number(s.seatsIdle)   || 0), 0);
-  const optimizable      = subscriptions.filter((s) => Number(s.seatsIdle) > 0).length;
+  const subscriptions = useMemo(() => {
+    const filters = {};
+    if (statusFilter !== 'all') filters.status = statusFilter;
+    const list = userData?.subscriptions || [];
+    return searchRecords(list, searchQuery, ['id', 'name', 'product', 'vendorName', 'department', 'status', 'aiFlag', 'monthlyCost', 'costPerYear'], filters);
+  }, [userData?.subscriptions, searchQuery, statusFilter]);
+
+  const totalMonthlyCost = rawSubscriptions.reduce((acc, s) => acc + (Number(s.monthlyCost) || 0), 0);
+  const totalIdleSeats   = rawSubscriptions.reduce((acc, s) => acc + (Number(s.seatsIdle)   || 0), 0);
+  const optimizable      = rawSubscriptions.filter((s) => Number(s.seatsIdle) > 0).length;
 
   const handleAddSub = (e) => {
     e.preventDefault();
@@ -755,11 +1203,11 @@ export const SubscriptionsModule = () => {
       onAddAction={() => setShowModal(true)}
       addLabel="Add Subscription"
     >
-      {subscriptions.length > 0 && (
+      {rawSubscriptions.length > 0 && (
         <div className="sub-summary-bar">
           <div className="sub-kpi-pill">
             <span className="sub-kpi-label">Total Subscriptions</span>
-            <span className="sub-kpi-value">{subscriptions.length}</span>
+            <span className="sub-kpi-value">{rawSubscriptions.length}</span>
           </div>
           <div className="sub-kpi-pill">
             <span className="sub-kpi-label">Monthly Cost</span>
@@ -776,8 +1224,53 @@ export const SubscriptionsModule = () => {
         </div>
       )}
 
+      {/* Search & Filter Toolbar */}
+      <div className="module-filter-toolbar">
+        <div className="module-filter-left">
+          <div className="module-search-wrapper">
+            <span className="module-search-icon">🔍</span>
+            <input
+              type="text"
+              className="module-search-input"
+              placeholder="Search subscriptions by product, vendor, department..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <select
+            className="module-select-filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            <option value="Optimizable">Optimizable</option>
+            <option value="Healthy">Healthy</option>
+          </select>
+
+          {(searchQuery || statusFilter !== 'all') && (
+            <button
+              type="button"
+              className="btn-filter-clear"
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('all');
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+
+        <div className="module-filter-right">
+          <span className="filter-count-label">
+            Showing {subscriptions.length} of {rawSubscriptions.length} subscription(s)
+          </span>
+        </div>
+      </div>
+
       <div className="card module-table-card">
-        {subscriptions.length === 0 ? (
+        {rawSubscriptions.length === 0 ? (
           <EmptyState
             icon={<SubscriptionsIcon size={28} />}
             title="No subscriptions tracked yet"
@@ -785,6 +1278,10 @@ export const SubscriptionsModule = () => {
             action="Add Subscription"
             onAction={() => setShowModal(true)}
           />
+        ) : subscriptions.length === 0 ? (
+          <div style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
+            No subscriptions match the search query "{searchQuery}".
+          </div>
         ) : (
           <div className="table-responsive">
             <table className="data-table">
@@ -912,24 +1409,73 @@ export const SubscriptionsModule = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5. Decisions & Outcomes Module
+// 5. Decisions & Outcomes Module — Human Approval Workflow
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const DecisionsModule = () => {
-  const { userData, metrics } = useAuth();
-  const decisions = userData?.decisions || [];
-  const outcomes  = userData?.outcomes  || [];
+  const { userData, metrics, updateDecisionStatus } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [activeDecisionModal, setActiveDecisionModal] = useState(null);
+  const [reviewNotes, setReviewNotes] = useState('');
 
-  const totalEstimatedSavings = decisions.reduce((acc, d) => acc + (Number(d.estimatedSavings) || 0), 0);
-  const totalActualSavings    = outcomes.reduce((acc, o) => acc + (Number(o.actualSaving) || 0), 0);
+  const rawDecisions = userData?.decisions || [];
+  const rawOutcomes  = userData?.outcomes  || [];
+
+  const decisions = useMemo(() => {
+    const filters = {};
+    if (statusFilter !== 'all') filters.statusVariant = statusFilter;
+    const list = userData?.decisions || [];
+    return searchRecords(list, searchQuery, ['id', 'decision', 'description', 'requestedBy', 'aiRecommendedAction', 'status', 'amount', 'estimatedSavings'], filters);
+  }, [userData?.decisions, searchQuery, statusFilter]);
+
+  const outcomes = useMemo(() => {
+    const list = userData?.outcomes || [];
+    return searchRecords(list, searchQuery, ['id', 'decision', 'decisionId', 'notes', 'actualSaving', 'aiPredictedSaving']);
+  }, [userData?.outcomes, searchQuery]);
+
+  const totalEstimatedSavings = rawDecisions.reduce((acc, d) => acc + (Number(d.estimatedSavings) || 0), 0);
+  const totalActualSavings    = rawOutcomes.reduce((acc, o) => acc + (Number(o.actualSaving) || 0), 0);
+
+  const handleApprove = (decision) => {
+    if (updateDecisionStatus) {
+      updateDecisionStatus(decision.id, 'Approved by Executive', {
+        notes: reviewNotes || 'Approved without modifications.',
+        actualSaving: decision.estimatedSavings || 0,
+      });
+      setActiveDecisionModal(null);
+      setReviewNotes('');
+    }
+  };
+
+  const handleNegotiate = (decision) => {
+    if (updateDecisionStatus) {
+      updateDecisionStatus(decision.id, 'Negotiation Authorized', {
+        notes: reviewNotes || 'Counter-offer authorized based on AI benchmark.',
+      });
+      setActiveDecisionModal(null);
+      setReviewNotes('');
+    }
+  };
+
+  const handleReject = (decision) => {
+    if (updateDecisionStatus) {
+      updateDecisionStatus(decision.id, 'Rejected by Executive', {
+        notes: reviewNotes || 'Requisition rejected by procurement reviewer.',
+        actualSaving: 0,
+      });
+      setActiveDecisionModal(null);
+      setReviewNotes('');
+    }
+  };
 
   return (
     <ModuleContainer
       title="Decisions & Outcomes"
-      subtitle="AI-recommended procurement decisions and outcome tracking (Learning Layer)"
+      subtitle="Executive authorization layer with full audit trails & machine learning outcomes"
       icon={<DecisionsIcon size={22} />}
     >
-      {decisions.length === 0 && outcomes.length === 0 ? (
+      {rawDecisions.length === 0 && rawOutcomes.length === 0 ? (
         <div className="card" style={{ padding: 36 }}>
           <EmptyState
             icon={<DecisionsIcon size={28} />}
@@ -943,10 +1489,10 @@ export const DecisionsModule = () => {
           <div className="sub-summary-bar">
             <div className="sub-kpi-pill">
               <span className="sub-kpi-label">Total Decisions</span>
-              <span className="sub-kpi-value">{decisions.length}</span>
+              <span className="sub-kpi-value">{rawDecisions.length}</span>
             </div>
             <div className="sub-kpi-pill">
-              <span className="sub-kpi-label">Pending</span>
+              <span className="sub-kpi-label">Pending Approval</span>
               <span className="sub-kpi-value warn">{metrics.pendingDecisionsCount}</span>
             </div>
             <div className="sub-kpi-pill">
@@ -954,56 +1500,150 @@ export const DecisionsModule = () => {
               <span className="sub-kpi-value">{formatCurrency(totalEstimatedSavings)}</span>
             </div>
             <div className="sub-kpi-pill">
-              <span className="sub-kpi-label">Actual Savings Recorded</span>
-              <span className="sub-kpi-value">{formatCurrency(totalActualSavings)}</span>
+              <span className="sub-kpi-label">Actual Savings Logged</span>
+              <span className="sub-kpi-value" style={{ color: '#10B981' }}>{formatCurrency(totalActualSavings)}</span>
+            </div>
+          </div>
+
+          {/* Search & Filter Toolbar */}
+          <div className="module-filter-toolbar">
+            <div className="module-filter-left">
+              <div className="module-search-wrapper">
+                <span className="module-search-icon">🔍</span>
+                <input
+                  type="text"
+                  className="module-search-input"
+                  placeholder="Search decisions by requisition, action, requester..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <select
+                className="module-select-filter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Decision Statuses</option>
+                <option value="under-review">Pending Sign-off</option>
+                <option value="approved">Approved</option>
+                <option value="warning">Negotiation in Progress</option>
+                <option value="danger">Rejected</option>
+              </select>
+
+              {(searchQuery || statusFilter !== 'all') && (
+                <button
+                  type="button"
+                  className="btn-filter-clear"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('all');
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            <div className="module-filter-right">
+              <span className="filter-count-label">
+                Showing {decisions.length} of {rawDecisions.length} decision(s)
+              </span>
             </div>
           </div>
 
           {/* Decisions Table */}
-          {decisions.length > 0 && (
+          {rawDecisions.length > 0 && (
             <div className="card module-table-card">
-              <div className="card-header"><h3 className="card-title">AI Recommended Decisions</h3></div>
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th><th>Decision</th><th>Requested By</th>
-                      <th>Amount</th><th>AI Action</th><th>Est. Saving</th><th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {decisions.map((d) => (
-                      <tr key={d.id}>
-                        <td className="table-id">{d.id}</td>
-                        <td className="table-primary">{d.decision}</td>
-                        <td className="table-secondary">{d.requestedBy}</td>
-                        <td className="table-amount">{d.formattedAmount || formatCurrency(d.amount)}</td>
-                        <td className="table-secondary">{d.aiRecommendedAction}</td>
-                        <td className="table-amount" style={{ color: '#10B981' }}>{d.formattedSavings || formatCurrency(d.estimatedSavings)}</td>
-                        <td><Badge variant={d.statusVariant || 'info'}>{d.status}</Badge></td>
+              <div className="card-header"><h3 className="card-title">Pending &amp; Authorized Decisions</h3></div>
+              {decisions.length === 0 ? (
+                <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+                  No decisions match your search filters.
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th><th>Decision / Requisition</th><th>Requested By</th>
+                        <th>Amount</th><th>AI Action</th><th>Est. Saving</th><th>Status</th><th>Executive Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {decisions.map((d) => {
+                        const isPending = d.statusVariant === 'under-review' || (d.status && d.status.includes('Pending'));
+                        return (
+                          <tr key={d.id}>
+                            <td className="table-id">{d.id}</td>
+                            <td className="table-primary">
+                              <span style={{ cursor: 'pointer', color: '#2563eb', fontWeight: 700 }} onClick={() => setActiveDecisionModal(d)}>
+                                {d.decision}
+                              </span>
+                            </td>
+                            <td className="table-secondary">{d.requestedBy}</td>
+                            <td className="table-amount">{d.formattedAmount || formatCurrency(d.amount)}</td>
+                            <td className="table-secondary">{d.aiRecommendedAction}</td>
+                            <td className="table-amount" style={{ color: '#10B981' }}>{d.formattedSavings || formatCurrency(d.estimatedSavings)}</td>
+                            <td><Badge variant={d.statusVariant || 'info'}>{d.status}</Badge></td>
+                            <td>
+                              {isPending ? (
+                                <div className="decision-action-group">
+                                  <button
+                                    type="button"
+                                    className="btn-decision-approve"
+                                    onClick={() => handleApprove(d)}
+                                    title="Approve Requisition & Issue PO"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-decision-negotiate"
+                                    onClick={() => handleNegotiate(d)}
+                                    title="Authorize AI Counter-Offer"
+                                  >
+                                    Negotiate
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-decision-reject"
+                                    onClick={() => handleReject(d)}
+                                    title="Reject Requisition"
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>
+                                  Resolved ({d.status})
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
           {/* Outcomes Table — Learning Layer */}
-          {outcomes.length > 0 && (
-            <div className="card module-table-card">
+          {rawOutcomes.length > 0 && (
+            <div className="card module-table-card" style={{ marginTop: 20 }}>
               <div className="card-header">
                 <h3 className="card-title">
-                  Outcomes — Learning Layer
-                  <span className="module-badge" style={{ marginLeft: 8 }}>AI Feedback</span>
+                  Outcomes &amp; Verified Savings — Learning Layer
+                  <span className="module-badge" style={{ marginLeft: 8 }}>Audited Outcomes</span>
                 </h3>
               </div>
               <div className="table-responsive">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Outcome</th><th>AI Predicted Saving</th><th>Actual Saving</th>
-                      <th>Accuracy</th><th>Notes</th><th>Completed</th>
+                      <th>Decision</th><th>AI Predicted Saving</th><th>Actual Saving</th>
+                      <th>Model Accuracy</th><th>Review Notes</th><th>Completed Date</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1023,6 +1663,118 @@ export const DecisionsModule = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── Human Approval Modal ── */}
+          {activeDecisionModal && (
+            <div className="modal-backdrop" onClick={() => setActiveDecisionModal(null)}>
+              <div
+                className="modal-card modal-card-analysis"
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: '600px' }}
+              >
+                <div className="modal-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="insight-card-icon-bubble" style={{ width: 28, height: 28 }}>
+                      <CheckCircleIcon size={18} />
+                    </div>
+                    <div>
+                      <h3 className="modal-title" style={{ fontSize: 15, fontWeight: 700 }}>
+                        Executive Decision Review: {activeDecisionModal.id}
+                      </h3>
+                      <span style={{ fontSize: 11, color: '#64748B' }}>
+                        Requested by: {activeDecisionModal.requestedBy}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="modal-close-btn"
+                    onClick={() => setActiveDecisionModal(null)}
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                <div className="modal-analysis-body">
+                  <div className="analysis-detail-header">
+                    <div>
+                      <h4 className="analysis-detail-title">{activeDecisionModal.decision}</h4>
+                      <span className="analysis-detail-category">{activeDecisionModal.description}</span>
+                    </div>
+                    <div>
+                      <Badge variant={activeDecisionModal.statusVariant || 'info'}>
+                        {activeDecisionModal.status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="analysis-section-block">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <span className="analysis-section-label">EXPOSURE AMOUNT</span>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
+                          {activeDecisionModal.formattedAmount || formatCurrency(activeDecisionModal.amount)}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="analysis-section-label">POTENTIAL SAVINGS</span>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#10B981' }}>
+                          {activeDecisionModal.formattedSavings || formatCurrency(activeDecisionModal.estimatedSavings)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="analysis-section-block recommendation-block">
+                    <span className="analysis-section-label" style={{ color: '#065F46' }}>
+                      AI RECOMMENDED ACTION
+                    </span>
+                    <p className="analysis-section-text" style={{ color: '#064E3B', fontWeight: 500 }}>
+                      {activeDecisionModal.aiRecommendedAction}
+                    </p>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: 12 }}>
+                    <label className="form-label">Reviewer Notes (Optional)</label>
+                    <textarea
+                      className="form-input form-textarea"
+                      rows={2}
+                      placeholder="Add justification or conditions for this decision..."
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="modal-actions" style={{ marginTop: 20 }}>
+                    <button
+                      type="button"
+                      className="btn-decision-reject"
+                      style={{ padding: '8px 16px' }}
+                      onClick={() => handleReject(activeDecisionModal)}
+                    >
+                      Reject Requisition
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-decision-negotiate"
+                      style={{ padding: '8px 16px' }}
+                      onClick={() => handleNegotiate(activeDecisionModal)}
+                    >
+                      Authorize Negotiation
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-decision-approve"
+                      style={{ padding: '8px 16px' }}
+                      onClick={() => handleApprove(activeDecisionModal)}
+                    >
+                      Approve &amp; Issue PO
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

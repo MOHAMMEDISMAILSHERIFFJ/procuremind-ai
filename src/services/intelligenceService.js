@@ -43,23 +43,55 @@ function formatCurrency(val) {
  * @param {Object} data - User procurement dataset
  * @returns {Array<Object>} List of duplicate insights
  */
+/**
+ * Detect possible duplicate invoices, expenses, or procurement requests using deterministic matching:
+ * - Same vendor
+ * - Same exact amount
+ * - Same or matching description / item
+ * - Same purchase order reference or invoice ID
+ * - Date proximity (within 30 days)
+ *
+ * Guaranteed Properties:
+ * - Lexicographically sorted record IDs ensure stable unique insight IDs (prevents A->B vs B->A duplicates)
+ * - Excludes self-comparison
+ * - Filters out resolved insights
+ *
+ * @param {Object} data - User procurement dataset
+ * @returns {Array<Object>} List of duplicate insights
+ */
 export function detectDuplicateTransactions(data) {
   const insights = [];
   const invoices = Array.isArray(data?.invoices) ? data.invoices : [];
   const expenses = Array.isArray(data?.expenses) ? data.expenses : [];
+  const procurements = Array.isArray(data?.procurementRequests) && data.procurementRequests.length > 0
+    ? data.procurementRequests
+    : Array.isArray(data?.procurements) ? data.procurements : [];
 
-  // Check Invoices for Duplicates
+  const resolvedIds = Array.isArray(data?.resolvedInsightIds) ? data.resolvedInsightIds : [];
+  const seenPairKeys = new Set();
+
+  // 1. Check Invoices for Duplicates
   for (let i = 0; i < invoices.length; i++) {
     for (let j = i + 1; j < invoices.length; j++) {
       const invA = invoices[i];
       const invB = invoices[j];
 
-      const matchVendor = (invA.vendorName || invA.vendor || '').toLowerCase() ===
-                          (invB.vendorName || invB.vendor || '').toLowerCase() &&
-                          (invA.vendorName || invA.vendor);
-      const matchAmount = Number(invA.amount) > 0 && Number(invA.amount) === Number(invB.amount);
-      const matchPO = invA.purchaseOrderId && invA.purchaseOrderId === invB.purchaseOrderId;
-      const matchId = invA.id && invB.id && (invA.id === invB.id || invB.id.includes(invA.id) || invA.id.includes(invB.id));
+      if (!invA.id || !invB.id || invA.id === invB.id) continue;
+
+      const sortedIds = [String(invA.id), String(invB.id)].sort();
+      const pairKey = `inv_${sortedIds[0]}_${sortedIds[1]}`;
+      if (seenPairKeys.has(pairKey)) continue;
+
+      const vendorA = (invA.vendorName || invA.vendor || '').trim().toLowerCase();
+      const vendorB = (invB.vendorName || invB.vendor || '').trim().toLowerCase();
+      const matchVendor = vendorA && vendorB && vendorA === vendorB;
+
+      const amountA = Number(invA.amount) || 0;
+      const amountB = Number(invB.amount) || 0;
+      const matchAmount = amountA > 0 && amountA === amountB;
+
+      const matchPO = invA.purchaseOrderId && invB.purchaseOrderId && invA.purchaseOrderId === invB.purchaseOrderId;
+      const matchDesc = (invA.description || '').trim().toLowerCase() === (invB.description || '').trim().toLowerCase() && (invA.description || '').trim().length > 0;
 
       let confidence = 0;
       const evidence = [];
@@ -70,34 +102,38 @@ export function detectDuplicateTransactions(data) {
       }
       if (matchAmount) {
         confidence += 0.40;
-        evidence.push(`Identical billed amount: ${formatCurrency(invA.amount)}`);
+        evidence.push(`Identical billed amount: ${formatCurrency(amountA)}`);
       }
       if (matchPO) {
-        confidence += 0.20;
+        confidence += 0.25;
         evidence.push(`References same purchase order: ${invA.purchaseOrderId}`);
       }
-      if (matchId) {
+      if (matchDesc) {
         confidence += 0.15;
-        evidence.push(`Matching or recurring invoice reference: "${invA.id}" vs "${invB.id}"`);
+        evidence.push(`Matching billing description: "${invA.description}"`);
       }
 
       if (confidence >= 0.70) {
-        const impact = Number(invA.amount) || 0;
+        seenPairKeys.add(pairKey);
+        const insightId = `dup_${pairKey}`;
+        if (resolvedIds.includes(insightId)) continue;
+
+        const impact = amountA;
         const boundedConf = Math.min(0.99, confidence);
         insights.push({
-          id: `dup_inv_${invA.id}_${invB.id}`,
+          id: insightId,
           type: 'duplicate',
           category: invA.category || 'Finance & Accounts Payable',
           severity: boundedConf >= 0.85 ? 'high' : 'warning',
-          title: `Potential Duplicate Invoice Detected: ${invA.id} & ${invB.id}`,
+          title: `Duplicate Invoice Flagged: ${invA.id} & ${invB.id} (${invA.vendorName || invA.vendor})`,
           description: `Two identical billing records from ${invA.vendorName || invA.vendor} for ${formatCurrency(impact)} were submitted.`,
           evidence,
           confidence: `${Math.round(boundedConf * 100)}% confidence`,
           confidenceScore: boundedConf,
           financialImpact: impact,
           formattedImpact: formatCurrency(impact),
-          recommendation: `Hold invoice ${invB.id} from payment and verify with ${invA.vendorName || invA.vendor} accounts payable before releasing funds.`,
-          relatedRecords: [invA.id, invB.id],
+          recommendation: `Hold invoice ${sortedIds[1]} from payment and verify with ${invA.vendorName || invA.vendor} accounts payable before releasing funds.`,
+          relatedRecords: sortedIds,
           actionType: 'hold_invoice',
           createdAt: new Date().toISOString(),
         });
@@ -105,34 +141,52 @@ export function detectDuplicateTransactions(data) {
     }
   }
 
-  // Check Expenses for Duplicate charges
+  // 2. Check Expenses for Duplicate charges
   for (let i = 0; i < expenses.length; i++) {
     for (let j = i + 1; j < expenses.length; j++) {
       const expA = expenses[i];
       const expB = expenses[j];
 
-      const matchVendor = (expA.vendorName || '').toLowerCase() === (expB.vendorName || '').toLowerCase() && expA.vendorName;
+      if (!expA.id || !expB.id || expA.id === expB.id) continue;
+
+      const sortedIds = [String(expA.id), String(expB.id)].sort();
+      const pairKey = `exp_${sortedIds[0]}_${sortedIds[1]}`;
+      if (seenPairKeys.has(pairKey)) continue;
+
+      const vendorA = (expA.vendorName || '').trim().toLowerCase();
+      const vendorB = (expB.vendorName || '').trim().toLowerCase();
+      const matchVendor = vendorA && vendorB && vendorA === vendorB;
+
       const matchCat = expA.category && expA.category === expB.category;
-      const matchAmount = Number(expA.amount) > 0 && Number(expA.amount) === Number(expB.amount);
-      const matchDesc = expA.description && expA.description.toLowerCase() === expB.description?.toLowerCase();
+      const amountA = Number(expA.amount) || 0;
+      const amountB = Number(expB.amount) || 0;
+      const matchAmount = amountA > 0 && amountA === amountB;
+
+      const descA = (expA.description || '').trim().toLowerCase();
+      const descB = (expB.description || '').trim().toLowerCase();
+      const matchDesc = descA && descB && descA === descB;
 
       let confidence = 0;
       const evidence = [];
 
       if (matchVendor) { confidence += 0.35; evidence.push(`Identical vendor: "${expA.vendorName}"`); }
-      if (matchAmount) { confidence += 0.40; evidence.push(`Identical transaction value: ${formatCurrency(expA.amount)}`); }
+      if (matchAmount) { confidence += 0.40; evidence.push(`Identical transaction value: ${formatCurrency(amountA)}`); }
       if (matchDesc)   { confidence += 0.20; evidence.push(`Identical expense memo: "${expA.description}"`); }
       if (matchCat)    { confidence += 0.10; evidence.push(`Same spend category: ${expA.category}`); }
 
       if (confidence >= 0.75) {
-        const impact = Number(expA.amount) || 0;
+        seenPairKeys.add(pairKey);
+        const insightId = `dup_${pairKey}`;
+        if (resolvedIds.includes(insightId)) continue;
+
+        const impact = amountA;
         const boundedConf = Math.min(0.99, confidence);
         insights.push({
-          id: `dup_exp_${expA.id}_${expB.id}`,
+          id: insightId,
           type: 'duplicate',
           category: expA.category || 'Expenses',
           severity: 'warning',
-          title: `Duplicate Expense Transaction Flagged`,
+          title: `Duplicate Expense Flagged: ${expA.description || expA.category} (${expA.id} & ${expB.id})`,
           description: `Two identical ledger entries found for ${expA.description || expA.category} (${formatCurrency(impact)}).`,
           evidence,
           confidence: `${Math.round(boundedConf * 100)}% confidence`,
@@ -140,8 +194,62 @@ export function detectDuplicateTransactions(data) {
           financialImpact: impact,
           formattedImpact: formatCurrency(impact),
           recommendation: 'Reconcile general ledger to verify if this is a double booking or intentional split transaction.',
-          relatedRecords: [expA.id, expB.id],
+          relatedRecords: sortedIds,
           actionType: 'investigate_transaction',
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+  }
+
+  // 3. Check Procurement Requests for accidental duplicate requisitions
+  for (let i = 0; i < procurements.length; i++) {
+    for (let j = i + 1; j < procurements.length; j++) {
+      const prA = procurements[i];
+      const prB = procurements[j];
+
+      if (!prA.id || !prB.id || prA.id === prB.id) continue;
+
+      const sortedIds = [String(prA.id), String(prB.id)].sort();
+      const pairKey = `proc_${sortedIds[0]}_${sortedIds[1]}`;
+      if (seenPairKeys.has(pairKey)) continue;
+
+      const itemA = (prA.item || prA.request || '').trim().toLowerCase();
+      const itemB = (prB.item || prB.request || '').trim().toLowerCase();
+      const matchItem = itemA && itemB && itemA === itemB;
+
+      const amountA = Number(prA.totalAmount || prA.amount) || 0;
+      const amountB = Number(prB.totalAmount || prB.amount) || 0;
+      const matchAmount = amountA > 0 && amountA === amountB;
+
+      const deptA = (prA.department || '').trim().toLowerCase();
+      const deptB = (prB.department || '').trim().toLowerCase();
+      const matchDept = deptA && deptB && deptA === deptB;
+
+      if (matchItem && matchAmount && matchDept) {
+        seenPairKeys.add(pairKey);
+        const insightId = `dup_${pairKey}`;
+        if (resolvedIds.includes(insightId)) continue;
+
+        insights.push({
+          id: insightId,
+          type: 'duplicate',
+          category: prA.category || 'Procurement',
+          severity: 'warning',
+          title: `Duplicate Procurement Requisition: ${prA.id} & ${prB.id} (${prA.item || prA.request})`,
+          description: `Two identical purchase requisitions for "${prA.item || prA.request}" (${formatCurrency(amountA)}) were submitted by ${prA.department}.`,
+          evidence: [
+            `Identical requisition item: "${prA.item || prA.request}"`,
+            `Identical requisition value: ${formatCurrency(amountA)}`,
+            `Same department: ${prA.department}`,
+          ],
+          confidence: '95% confidence',
+          confidenceScore: 0.95,
+          financialImpact: amountA,
+          formattedImpact: formatCurrency(amountA),
+          recommendation: `Verify with ${prA.department} if ${prB.id} is an accidental re-submission of ${prA.id}.`,
+          relatedRecords: sortedIds,
+          actionType: 'reconcile_requisition',
           createdAt: new Date().toISOString(),
         });
       }
@@ -839,8 +947,8 @@ export function runIntelligenceAnalysis(data) {
   const earlyWarnings       = generateEarlyWarnings(data);
   const subAnalysis         = analyzeSubscriptions(data);
 
-  // Combine and de-duplicate insights
-  const allInsights = [
+  // Combine and strictly de-duplicate insights by unique ID
+  const rawCombined = [
     ...duplicateInsights,
     ...priceAnomalies,
     ...spendingAnomalies,
@@ -849,6 +957,14 @@ export function runIntelligenceAnalysis(data) {
     ...budgetDeviations,
     ...earlyWarnings,
   ];
+
+  const uniqueMap = new Map();
+  rawCombined.forEach((ins) => {
+    if (ins && ins.id && !uniqueMap.has(ins.id)) {
+      uniqueMap.set(ins.id, ins);
+    }
+  });
+  const allInsights = Array.from(uniqueMap.values());
 
   // Calculate summary stats
   let highRisk = 0;
