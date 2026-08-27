@@ -89,30 +89,33 @@ export const KpiCards = () => {
   ];
 
   return (
-    <section className="kpi-grid" aria-label="Key Performance Indicators">
-      {cards.map((metric) => (
-        <div key={metric.id} className="kpi-card">
-          <div className="kpi-card-header">
-            <span className="kpi-card-title">{metric.title}</span>
-            <div className={`kpi-icon-wrapper kpi-icon-${metric.indicatorType}`}>
-              {metric.icon}
+    <div className="kpi-section-wrapper">
+      <div className="section-storytelling-tag">03 • SPEND &amp; SAVINGS LEDGER</div>
+      <section className="kpi-grid" aria-label="Key Performance Indicators">
+        {cards.map((metric) => (
+          <div key={metric.id} className="kpi-card">
+            <div className="kpi-card-header">
+              <span className="kpi-card-title">{metric.title}</span>
+              <div className={`kpi-icon-wrapper kpi-icon-${metric.indicatorType}`}>
+                {metric.icon}
+              </div>
             </div>
+
+            <div className="kpi-card-body">
+              <div className="kpi-value-row">
+                <span className="kpi-main-number">{metric.value}</span>
+                {metric.badge}
+              </div>
+
+              <div className="kpi-supporting-row">
+                <span className="kpi-supporting-text">{metric.supportingText}</span>
+              </div>
+            </div>
+
+            <div className={`kpi-bottom-accent accent-${metric.indicatorType}`} />
           </div>
-
-          <div className="kpi-card-body">
-            <div className="kpi-value-row">
-              <span className="kpi-main-number">{metric.value}</span>
-              {metric.badge}
-            </div>
-
-            <div className="kpi-supporting-row">
-              <span className="kpi-supporting-text">{metric.supportingText}</span>
-            </div>
-          </div>
-
-          <div className={`kpi-bottom-accent accent-${metric.indicatorType}`} />
-        </div>
-      ))}
-    </section>
+        ))}
+      </section>
+    </div>
   );
 };

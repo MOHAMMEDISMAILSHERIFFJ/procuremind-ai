@@ -74,6 +74,7 @@ export const AiInsights = () => {
 
   return (
     <section className="dashboard-section" aria-labelledby="ai-insights-heading">
+      <div className="section-storytelling-tag">05 • REAL-TIME AI INSIGHTS &amp; RISK SIGNALS</div>
       <div className="section-header-row">
         <div className="section-title-group">
           <div className="section-spark-icon">

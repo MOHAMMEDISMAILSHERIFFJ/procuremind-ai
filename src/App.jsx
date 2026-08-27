@@ -8,6 +8,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { KpiCards } from './components/dashboard/KpiCards';
 import ProcureMindScene from './components/3d/ProcureMindScene';
+import ProcureMindBackground3D from './components/3d/ProcureMindBackground3D';
 import { AiInsights } from './components/dashboard/AiInsights';
 import { SpendingChart } from './components/dashboard/SpendingChart';
 import { RecentProcurement } from './components/dashboard/RecentProcurement';
@@ -203,22 +204,26 @@ function AppContent() {
 
   // ── Not authenticated → show Login or Register ───────────────────────────
   if (!isAuthenticated) {
-    if (authView === 'register') {
-      return (
-        <Register
-          onNavigateToLogin={() => setAuthView('login')}
-          onRegistrationSuccess={() => {
-            setAuthView('login');
-            setActiveTab('dashboard');
-          }}
-        />
-      );
-    }
     return (
-      <Login
-        onNavigateToRegister={() => setAuthView('register')}
-        onLoginSuccess={() => setActiveTab('dashboard')}
-      />
+      <div className="app-viewport-container">
+        <ProcureMindBackground3D />
+        <div className="app-foreground-layer">
+          {authView === 'register' ? (
+            <Register
+              onNavigateToLogin={() => setAuthView('login')}
+              onRegistrationSuccess={() => {
+                setAuthView('login');
+                setActiveTab('dashboard');
+              }}
+            />
+          ) : (
+            <Login
+              onNavigateToRegister={() => setAuthView('register')}
+              onLoginSuccess={() => setActiveTab('dashboard')}
+            />
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -238,11 +243,14 @@ function AppContent() {
   };
 
   return (
-    <div className="app-layout">
-      <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} />
-      <div className="main-wrapper">
-        <Header />
-        {renderView()}
+    <div className="app-viewport-container">
+      <ProcureMindBackground3D />
+      <div className="app-layout app-foreground-layer">
+        <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} />
+        <div className="main-wrapper">
+          <Header />
+          {renderView()}
+        </div>
       </div>
     </div>
   );

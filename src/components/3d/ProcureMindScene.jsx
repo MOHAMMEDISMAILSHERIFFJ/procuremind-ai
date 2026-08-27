@@ -441,6 +441,7 @@ export default function ProcureMindScene() {
 
   return (
     <div className="procuremind-3d-wrapper">
+      <div className="section-storytelling-tag" style={{ margin: '16px 20px 0' }}>04 • 3D NEURAL TELEMETRY CORE</div>
       {/* 3D Scene Header & Meta Overlay */}
       <div className="scene-overlay-header">
         <div className="scene-overlay-left">

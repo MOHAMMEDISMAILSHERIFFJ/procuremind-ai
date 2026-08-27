@@ -11,6 +11,7 @@ export const SpendingChart = () => {
 
   return (
     <div className="card spending-overview-card">
+      <div className="section-storytelling-tag">06 • SPEND ALLOCATION &amp; TELEMETRY</div>
       <div className="card-header">
         <div className="card-header-main">
           <div className="card-header-icon chart-icon-wrapper">

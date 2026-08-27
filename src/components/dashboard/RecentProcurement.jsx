@@ -59,6 +59,7 @@ export const RecentProcurement = () => {
 
   return (
     <div className="card recent-procurement-card">
+      <div className="section-storytelling-tag">08 • RECENT REQUISITIONS &amp; AUDIT TRAIL</div>
       <div className="card-header">
         <div className="card-header-main">
           <div className="card-header-icon procurement-icon-wrapper">

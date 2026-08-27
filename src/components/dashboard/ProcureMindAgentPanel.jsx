@@ -71,6 +71,7 @@ export function ProcureMindAgentPanel({ onNavigateToDecisions }) {
 
   return (
     <div className="card agent-panel-card">
+      <div className="section-storytelling-tag">02 • AI AGENT COMMAND &amp; NEGOTIATION</div>
       {/* Panel Header */}
       <div className="card-header">
         <div className="card-header-main">

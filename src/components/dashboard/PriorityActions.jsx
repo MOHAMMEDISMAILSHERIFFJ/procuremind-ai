@@ -49,6 +49,7 @@ export const PriorityActions = () => {
 
   return (
     <div className="card priority-actions-card">
+      <div className="section-storytelling-tag">07 • EXECUTIVE PRIORITY ACTIONS</div>
       <div className="card-header">
         <div className="card-header-main">
           <div className="card-header-icon priority-icon-wrapper">

@@ -57,16 +57,17 @@ export function ProcureMindAgentBar({ isAgentRunning, onTriggerAgent }) {
 
   return (
     <div className="card agent-hero-card">
+      <div className="section-storytelling-tag">01 • AI PROCUREMENT INTELLIGENCE</div>
       <div className="agent-hero-header">
         <div className="agent-hero-badge">
           <SparklesIcon size={14} />
-          <span>AUTONOMOUS PROCUREMENT AGENT</span>
+          <span>AUTONOMOUS INTELLIGENCE CORE</span>
         </div>
         <h2 className="agent-hero-title">
-          What would you like to procure for {currentUser?.companyName || 'your organization'}?
+          What do you need to procure for {currentUser?.companyName || 'your enterprise'}?
         </h2>
         <p className="agent-hero-subtitle">
-          Enter any procurement requirement in natural language. ProcureMind will automatically benchmark historical prices, evaluate vendor compliance, detect risks, and prepare an optimal negotiation strategy.
+          Autonomous intelligence for smarter procurement, better negotiations, and controlled enterprise spend. Enter any requirement to automatically trigger historical benchmarking, risk detection, and negotiation simulations.
         </p>
       </div>
 
