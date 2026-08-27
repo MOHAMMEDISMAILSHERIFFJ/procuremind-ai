@@ -9,11 +9,39 @@ import {
 } from '../components/icons/Icons';
 import { useAuth } from '../context/useAuth';
 
+// Eye icon inline (avoid extra import)
+const EyeIcon = ({ open }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {open ? (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ) : (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    )}
+  </svg>
+);
+
 export default function Login({ onNavigateToRegister, onLoginSuccess }) {
   const { login } = useAuth();
 
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,13 +53,18 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }) {
     if (e) e.preventDefault();
     setError('');
 
-    if (!usernameOrEmail.trim() || !password) {
-      setError('Please enter both username/email and password.');
+    if (!usernameOrEmail.trim()) {
+      setError('Please enter your username or email address.');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
       return;
     }
 
     setLoading(true);
 
+    // Short async delay so the loading spinner is visible
     setTimeout(() => {
       const result = login(usernameOrEmail, password);
       if (result.success) {
@@ -42,7 +75,7 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }) {
         setError(result.error || 'Invalid username or password.');
         setLoading(false);
       }
-    }, 250);
+    }, 350);
   };
 
   const handleQuickFillDemo = () => {
@@ -52,21 +85,22 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }) {
   };
 
   const handleInstantDemoLogin = () => {
-    setUsernameOrEmail(DEMO_EMAIL);
-    setPassword(DEMO_PASSWORD);
     setError('');
     setLoading(true);
     setTimeout(() => {
       const result = login(DEMO_EMAIL, DEMO_PASSWORD);
       if (result.success && onLoginSuccess) {
         onLoginSuccess(result.user);
+      } else {
+        setError('Demo login failed. Please refresh and try again.');
+        setLoading(false);
       }
-    }, 200);
+    }, 300);
   };
 
   return (
     <div className="login-page-container">
-      {/* Background Subtle Glows */}
+      {/* Background Ambient Glows */}
       <div className="login-ambient-orb orb-primary" />
       <div className="login-ambient-orb orb-secondary" />
       <div className="login-ambient-grid" />
@@ -96,46 +130,68 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }) {
         )}
 
         {/* Login Form */}
-        <form className="login-form" onSubmit={handleLogin}>
+        <form className="login-form" onSubmit={handleLogin} noValidate>
+          {/* Username / Email */}
           <div className="form-group">
-            <label htmlFor="username-email-input" className="form-label">
+            <label htmlFor="login-identifier" className="form-label">
               Username or Office Email
             </label>
             <input
-              id="username-email-input"
+              id="login-identifier"
               type="text"
               className="form-input"
               placeholder="Username or email@company.com"
               value={usernameOrEmail}
-              onChange={(e) => setUsernameOrEmail(e.target.value)}
-              required
+              onChange={(e) => {
+                setUsernameOrEmail(e.target.value);
+                if (error) setError('');
+              }}
               autoComplete="username"
+              autoFocus
             />
           </div>
 
+          {/* Password with Show/Hide Toggle */}
           <div className="form-group">
             <div className="form-label-row">
-              <label htmlFor="password-input" className="form-label">
+              <label htmlFor="login-password" className="form-label">
                 Password
               </label>
               <button
                 type="button"
                 className="btn-forgot-password"
-                onClick={() => alert('For prototype access, you can use the demo credentials or create a new account.')}
+                onClick={() =>
+                  alert(
+                    'This is a prototype. Use the demo credentials or create a new account.'
+                  )
+                }
               >
                 Forgot Password?
               </button>
             </div>
-            <input
-              id="password-input"
-              type="password"
-              className="form-input"
-              placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
+            <div className="password-input-wrapper">
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                className="form-input password-field-with-toggle"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError('');
+                }}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <EyeIcon open={showPassword} />
+              </button>
+            </div>
           </div>
 
           {/* Remember Me */}
@@ -159,7 +215,8 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }) {
           >
             {loading ? (
               <span className="btn-loading-state">
-                <span className="login-spinner" /> Authenticating...
+                <span className="login-spinner" />
+                Authenticating...
               </span>
             ) : (
               <>
@@ -174,27 +231,31 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }) {
             type="button"
             className="btn-create-account"
             onClick={onNavigateToRegister}
+            disabled={loading}
           >
             <SparklesIcon size={15} />
             <span>Create New Account</span>
           </button>
         </form>
 
-        {/* Demo Credentials Option */}
+        {/* Demo Credentials Panel */}
         <div className="login-demo-helper">
           <div className="demo-helper-header">
-            <span className="demo-helper-title">Demo Credentials (Preloaded Data)</span>
+            <span className="demo-helper-title">
+              Demo Account (NovaTech Industries)
+            </span>
             <button
               type="button"
               className="btn-quick-fill"
               onClick={handleQuickFillDemo}
+              disabled={loading}
             >
-              Fill Demo
+              Fill Credentials
             </button>
           </div>
           <div className="demo-creds-row">
             <div className="cred-badge">
-              <span className="cred-key">User/Email:</span>
+              <span className="cred-key">Email:</span>
               <code className="cred-val">demo@procuremind.ai</code>
             </div>
             <div className="cred-badge">
@@ -206,15 +267,18 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }) {
             type="button"
             className="btn-instant-demo"
             onClick={handleInstantDemoLogin}
+            disabled={loading}
           >
             <CheckCircleIcon size={14} />
             <span>1-Click Demo Sign In</span>
           </button>
         </div>
 
-        {/* Footer Security Badge */}
+        {/* Footer */}
         <div className="login-footer-security">
-          <span>Enterprise Secure Connection &bull; Isolated Multi-Tenant Workspace</span>
+          <span>
+            Enterprise Isolated Workspace &bull; Prototype v1.0 &bull; No API keys stored
+          </span>
         </div>
       </div>
     </div>

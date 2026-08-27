@@ -9,14 +9,42 @@ import {
 } from '../components/icons/Icons';
 import { useAuth } from '../context/useAuth';
 
+// Inline eye icon to avoid extra import
+const EyeIcon = ({ open }) => (
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {open ? (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ) : (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    )}
+  </svg>
+);
+
 export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
   const { register } = useAuth();
 
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Form State across 3 Steps
   const [formData, setFormData] = useState({
     // Step 1: Account
     fullName: '',
@@ -39,65 +67,60 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
 
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    setError('');
+    if (error) setError('');
   };
 
   const validateStep1 = () => {
     if (!formData.fullName.trim()) return 'Full Name is required.';
     if (!formData.username.trim()) return 'Username is required.';
-    if (formData.username.trim().length < 3) return 'Username must be at least 3 characters.';
+    if (formData.username.trim().length < 3)
+      return 'Username must be at least 3 characters.';
+    if (/\s/.test(formData.username.trim()))
+      return 'Username cannot contain spaces.';
     if (!formData.email.trim()) return 'Office Email is required.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      return 'Please enter a valid office email address.';
-    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()))
+      return 'Please enter a valid email address.';
     if (!formData.password) return 'Password is required.';
-    if (formData.password.length < 6) return 'Password must be at least 6 characters.';
-    if (formData.password !== formData.confirmPassword) {
+    if (formData.password.length < 6)
+      return 'Password must be at least 6 characters.';
+    if (formData.password !== formData.confirmPassword)
       return 'Passwords do not match.';
-    }
     return null;
   };
 
   const validateStep2 = () => {
-    if (!formData.companyName.trim()) return 'Company Name is required.';
+    if (!formData.companyName.trim()) return 'Company / Organisation name is required.';
     if (!formData.jobRole.trim()) return 'Job Role is required.';
     if (!formData.department.trim()) return 'Department is required.';
-    if (!formData.companyDescription.trim()) return 'Please provide a brief company description.';
+    if (!formData.companyDescription.trim())
+      return 'Please provide a brief company description.';
     return null;
   };
 
   const validateStep3 = () => {
-    if (!formData.companyWork.trim()) return 'Please describe what your company does.';
-    if (!formData.procurementTypes.trim()) return 'Please select or specify procurement types.';
-    if (!formData.workDescription.trim()) return 'Please specify what you are responsible for.';
+    if (!formData.companyWork.trim())
+      return 'Please describe what your company does.';
+    if (!formData.procurementTypes.trim())
+      return 'Please specify the types of procurement you handle.';
+    if (!formData.workDescription.trim())
+      return 'Please describe what you are responsible for.';
     return null;
   };
 
-  const handleNextStep = (e) => {
+  const handleNext = (e) => {
     e.preventDefault();
     setError('');
-
-    if (step === 1) {
-      const err = validateStep1();
-      if (err) {
-        setError(err);
-        return;
-      }
-      setStep(2);
-    } else if (step === 2) {
-      const err = validateStep2();
-      if (err) {
-        setError(err);
-        return;
-      }
-      setStep(3);
+    const err = step === 1 ? validateStep1() : validateStep2();
+    if (err) {
+      setError(err);
+      return;
     }
+    setStep((s) => s + 1);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-
     const err = validateStep3();
     if (err) {
       setError(err);
@@ -105,7 +128,6 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
     }
 
     setLoading(true);
-
     const result = register({
       fullName: formData.fullName,
       username: formData.username,
@@ -122,10 +144,16 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
     if (!result.success) {
       setError(result.error);
       setLoading(false);
+      // If username/email collision → jump back to step 1
+      if (
+        result.error.toLowerCase().includes('username') ||
+        result.error.toLowerCase().includes('email')
+      ) {
+        setStep(1);
+      }
       return;
     }
 
-    // Success! New account created with completely empty dataset
     if (onRegistrationSuccess) {
       onRegistrationSuccess();
     }
@@ -133,7 +161,6 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
 
   return (
     <div className="login-page-container">
-      {/* Subtle Background Glows */}
       <div className="login-ambient-orb orb-primary" />
       <div className="login-ambient-orb orb-secondary" />
       <div className="login-ambient-grid" />
@@ -153,20 +180,21 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
 
         {/* Step Indicator */}
         <div className="register-steps-indicator">
-          <div className={`step-pill ${step >= 1 ? 'active' : ''}`}>
-            <span className="step-num">1</span>
-            <span className="step-name">Account</span>
-          </div>
-          <div className="step-connector" />
-          <div className={`step-pill ${step >= 2 ? 'active' : ''}`}>
-            <span className="step-num">2</span>
-            <span className="step-name">Company</span>
-          </div>
-          <div className="step-connector" />
-          <div className={`step-pill ${step >= 3 ? 'active' : ''}`}>
-            <span className="step-num">3</span>
-            <span className="step-name">Context</span>
-          </div>
+          {[
+            { num: 1, label: 'Account' },
+            { num: 2, label: 'Company' },
+            { num: 3, label: 'Context' },
+          ].map((s, i, arr) => (
+            <React.Fragment key={s.num}>
+              <div className={`step-pill ${step >= s.num ? 'active' : ''}`}>
+                <span className="step-num">
+                  {step > s.num ? '✓' : s.num}
+                </span>
+                <span className="step-name">{s.label}</span>
+              </div>
+              {i < arr.length - 1 && <div className="step-connector" />}
+            </React.Fragment>
+          ))}
         </div>
 
         {/* Error Alert */}
@@ -178,8 +206,12 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
         )}
 
         {/* Multi-Step Form */}
-        <form onSubmit={step === 3 ? handleSubmit : handleNextStep} className="login-form">
-          {/* STEP 1: ACCOUNT */}
+        <form
+          onSubmit={step === 3 ? handleSubmit : handleNext}
+          className="login-form"
+          noValidate
+        >
+          {/* ── STEP 1: Account ── */}
           {step === 1 && (
             <div className="step-fields-group">
               <div className="form-group">
@@ -190,7 +222,7 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
                   placeholder="e.g. Rahul Sharma"
                   value={formData.fullName}
                   onChange={(e) => updateField('fullName', e.target.value)}
-                  required
+                  autoFocus
                 />
               </div>
 
@@ -203,7 +235,6 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
                     placeholder="e.g. rahul_procure"
                     value={formData.username}
                     onChange={(e) => updateField('username', e.target.value)}
-                    required
                   />
                 </div>
                 <div className="form-group">
@@ -214,7 +245,6 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
                     placeholder="name@company.com"
                     value={formData.email}
                     onChange={(e) => updateField('email', e.target.value)}
-                    required
                   />
                 </div>
               </div>
@@ -222,42 +252,62 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
               <div className="form-row-2col">
                 <div className="form-group">
                   <label className="form-label">Password</label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder="Min. 6 characters"
-                    value={formData.password}
-                    onChange={(e) => updateField('password', e.target.value)}
-                    required
-                  />
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="form-input password-field-with-toggle"
+                      placeholder="Min. 6 characters"
+                      value={formData.password}
+                      onChange={(e) =>
+                        updateField('password', e.target.value)
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle-btn"
+                      onClick={() => setShowPassword((s) => !s)}
+                    >
+                      <EyeIcon open={showPassword} />
+                    </button>
+                  </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Confirm Password</label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder="Repeat password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => updateField('confirmPassword', e.target.value)}
-                    required
-                  />
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="form-input password-field-with-toggle"
+                      placeholder="Repeat password"
+                      value={formData.confirmPassword}
+                      onChange={(e) =>
+                        updateField('confirmPassword', e.target.value)
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle-btn"
+                      onClick={() => setShowConfirmPassword((s) => !s)}
+                    >
+                      <EyeIcon open={showConfirmPassword} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* STEP 2: COMPANY */}
+          {/* ── STEP 2: Company ── */}
           {step === 2 && (
             <div className="step-fields-group">
               <div className="form-group">
-                <label className="form-label">Company Name</label>
+                <label className="form-label">Company / Organisation Name</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Apex Global Technologies"
+                  placeholder="e.g. Apex Technologies"
                   value={formData.companyName}
                   onChange={(e) => updateField('companyName', e.target.value)}
-                  required
+                  autoFocus
                 />
               </div>
 
@@ -270,7 +320,6 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
                     placeholder="e.g. Head of Procurement"
                     value={formData.jobRole}
                     onChange={(e) => updateField('jobRole', e.target.value)}
-                    required
                   />
                 </div>
                 <div className="form-group">
@@ -278,29 +327,29 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Sourcing & Supply Chain"
+                    placeholder="e.g. Supply Chain"
                     value={formData.department}
                     onChange={(e) => updateField('department', e.target.value)}
-                    required
                   />
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Company Description</label>
+                <label className="form-label">Brief Company Description</label>
                 <textarea
                   className="form-input form-textarea"
                   rows={2}
-                  placeholder="e.g. Enterprise software and industrial electronics manufacturer..."
+                  placeholder="e.g. Industrial electronics and enterprise software manufacturer..."
                   value={formData.companyDescription}
-                  onChange={(e) => updateField('companyDescription', e.target.value)}
-                  required
+                  onChange={(e) =>
+                    updateField('companyDescription', e.target.value)
+                  }
                 />
               </div>
             </div>
           )}
 
-          {/* STEP 3: WORK CONTEXT */}
+          {/* ── STEP 3: Work Context ── */}
           {step === 3 && (
             <div className="step-fields-group">
               <div className="form-group">
@@ -311,38 +360,44 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
                   placeholder="e.g. Builds embedded IoT sensors and enterprise edge devices"
                   value={formData.companyWork}
                   onChange={(e) => updateField('companyWork', e.target.value)}
-                  required
+                  autoFocus
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">What type of procurement does your organization handle?</label>
+                <label className="form-label">
+                  What type of procurement does your organisation handle?
+                </label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Developer Laptops, Lab Multimeters, AWS Cloud, Adobe SaaS"
+                  placeholder="e.g. Developer Laptops, Lab Instruments, AWS Cloud, SaaS Tools"
                   value={formData.procurementTypes}
-                  onChange={(e) => updateField('procurementTypes', e.target.value)}
-                  required
+                  onChange={(e) =>
+                    updateField('procurementTypes', e.target.value)
+                  }
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">What are you responsible for?</label>
+                <label className="form-label">
+                  What are you responsible for?
+                </label>
                 <textarea
                   className="form-input form-textarea"
                   rows={2}
-                  placeholder="e.g. Supplier pricing negotiations, hardware purchase orders, and SaaS renewals..."
+                  placeholder="e.g. Vendor contract negotiations, hardware purchase orders, SaaS renewals..."
                   value={formData.workDescription}
-                  onChange={(e) => updateField('workDescription', e.target.value)}
-                  required
+                  onChange={(e) =>
+                    updateField('workDescription', e.target.value)
+                  }
                 />
               </div>
 
               <div className="register-ai-notice">
-                <SparklesIcon size={14} className="text-blue-500" />
+                <SparklesIcon size={14} />
                 <span>
-                  This context will configure your personalized AI procurement engine.
+                  This profile configures your personalised AI Procurement Intelligence Engine.
                 </span>
               </div>
             </div>
@@ -354,7 +409,11 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
               <button
                 type="button"
                 className="btn-register-back"
-                onClick={() => setStep((s) => s - 1)}
+                onClick={() => {
+                  setError('');
+                  setStep((s) => s - 1);
+                }}
+                disabled={loading}
               >
                 Back
               </button>
@@ -362,7 +421,7 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
 
             {step < 3 ? (
               <button type="submit" className="btn-login-submit">
-                <span>Continue to Step {step + 1}</span>
+                Continue to Step {step + 1}
                 <ChevronRightIcon size={16} />
               </button>
             ) : (
@@ -373,7 +432,8 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
               >
                 {loading ? (
                   <span className="btn-loading-state">
-                    <span className="login-spinner" /> Initializing Account...
+                    <span className="login-spinner" />
+                    Creating Account...
                   </span>
                 ) : (
                   <>
@@ -386,13 +446,14 @@ export default function Register({ onNavigateToLogin, onRegistrationSuccess }) {
           </div>
         </form>
 
-        {/* Footer Back to Login Link */}
+        {/* Footer — Back to Sign In */}
         <div className="register-footer-row">
           <span>Already have an account?</span>
           <button
             type="button"
             className="btn-link-login"
             onClick={onNavigateToLogin}
+            disabled={loading}
           >
             Sign In
           </button>
