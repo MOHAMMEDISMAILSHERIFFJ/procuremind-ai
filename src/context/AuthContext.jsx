@@ -10,6 +10,7 @@ import {
   addProcurementRequest,
   addSubscription,
   addInvoice,
+  createDecisionFromInsight,
   loadDemoData,
   clearProcurementData,
 } from '../services/dataService';
@@ -232,6 +233,13 @@ export function AuthProvider({ children }) {
     setUserData({ ...updated });
   };
 
+  const createDecisionFromInsightAction = (insight) => {
+    if (!currentUser || !insight) return;
+    const updated = createDecisionFromInsight(currentUser.id, insight);
+    setUserData({ ...updated });
+    return updated;
+  };
+
   /** Load full NovaTech demo dataset into current user's account. */
   const loadDemoDataAction = () => {
     if (!currentUser) return;
@@ -256,12 +264,14 @@ export function AuthProvider({ children }) {
     logout,
     refreshData,
     // Data mutations
-    addVendor:        addVendorAction,
-    addProcurement:   addProcurementAction,
-    addSubscription:  addSubscriptionAction,
-    addInvoice:       addInvoiceAction,
-    loadDemoData:     loadDemoDataAction,
-    clearData:        clearDataAction,
+    addVendor:                  addVendorAction,
+    addProcurement:             addProcurementAction,
+    addSubscription:            addSubscriptionAction,
+    addInvoice:                 addInvoiceAction,
+    createDecisionFromInsight:  createDecisionFromInsightAction,
+    addDecision:                createDecisionFromInsightAction,
+    loadDemoData:               loadDemoDataAction,
+    clearData:                  clearDataAction,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

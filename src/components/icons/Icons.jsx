@@ -218,6 +218,18 @@ export const UsersIcon = ({ className = '', size = 16, ...props }) => (
   </svg>
 );
 
+export const MessageSquareIcon = ({ className = '', size = 16, ...props }) => (
+  <svg {...iconProps} width={size} height={size} className={className} {...props}>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+export const ChevronDownIcon = ({ className = '', size = 16, ...props }) => (
+  <svg {...iconProps} width={size} height={size} className={className} {...props}>
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
 export const BrainSparkleLogo = ({ size = 28, className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <rect width="32" height="32" rx="8" fill="#1E3A8A" />

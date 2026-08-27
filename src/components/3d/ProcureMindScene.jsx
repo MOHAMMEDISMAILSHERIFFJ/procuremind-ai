@@ -1,36 +1,52 @@
 // src/components/3d/ProcureMindScene.jsx
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html, Float, Line, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAuth } from '../../context/useAuth';
+import { subscribeToAgentState, AGENT_STATES } from '../../services/agentService';
 
 // Central Floating AI Intelligence Core Component
-function CentralAiCore({ isHovered, onHover }) {
+function CentralAiCore({ isHovered, onHover, insightCount = 0, agentState = 'idle' }) {
   const outerGroupRef = useRef();
   const innerCoreRef = useRef();
   const ring1Ref = useRef();
   const ring2Ref = useRef();
 
+  const isAnalyzing =
+    agentState === AGENT_STATES.INGESTING ||
+    agentState === AGENT_STATES.ANALYZING ||
+    agentState === AGENT_STATES.BENCHMARKING ||
+    agentState === AGENT_STATES.VENDOR_INTELLIGENCE ||
+    agentState === AGENT_STATES.RISK_ANALYSIS ||
+    agentState === AGENT_STATES.NEGOTIATING ||
+    agentState === AGENT_STATES.RECOMMENDATION_READY;
+
+  const isCompleted = agentState === AGENT_STATES.COMPLETED;
+  const hasInsights = insightCount > 0;
+
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
+    const speedMultiplier = isAnalyzing ? 2.2 : 1.0;
+
     if (outerGroupRef.current) {
-      outerGroupRef.current.rotation.y = t * 0.25;
-      outerGroupRef.current.rotation.x = Math.sin(t * 0.15) * 0.08;
+      outerGroupRef.current.rotation.y = t * 0.22 * speedMultiplier;
+      outerGroupRef.current.rotation.x = Math.sin(t * 0.15 * speedMultiplier) * 0.06;
     }
     if (innerCoreRef.current) {
-      innerCoreRef.current.rotation.y = -t * 0.4;
-      innerCoreRef.current.rotation.z = Math.cos(t * 0.3) * 0.12;
-      const scale = 1 + Math.sin(t * 2) * 0.04;
+      innerCoreRef.current.rotation.y = -t * 0.35 * speedMultiplier;
+      innerCoreRef.current.rotation.z = Math.cos(t * 0.3 * speedMultiplier) * 0.1;
+      const pulseSpeed = isAnalyzing ? 4.0 : isCompleted ? 2.8 : hasInsights ? 2.2 : 1.4;
+      const scale = 1 + Math.sin(t * pulseSpeed) * (isAnalyzing ? 0.08 : 0.03);
       innerCoreRef.current.scale.set(scale, scale, scale);
     }
     if (ring1Ref.current) {
-      ring1Ref.current.rotation.x = t * 0.4;
-      ring1Ref.current.rotation.y = t * 0.25;
+      ring1Ref.current.rotation.x = t * 0.35 * speedMultiplier;
+      ring1Ref.current.rotation.y = t * 0.2 * speedMultiplier;
     }
     if (ring2Ref.current) {
-      ring2Ref.current.rotation.y = -t * 0.35;
-      ring2Ref.current.rotation.z = t * 0.5;
+      ring2Ref.current.rotation.y = -t * 0.3 * speedMultiplier;
+      ring2Ref.current.rotation.z = t * 0.45 * speedMultiplier;
     }
   });
 
@@ -48,8 +64,8 @@ function CentralAiCore({ isHovered, onHover }) {
         <icosahedronGeometry args={[0.9, 2]} />
         <meshStandardMaterial
           color="#1D4ED8"
-          emissive="#3B82F6"
-          emissiveIntensity={isHovered ? 2.6 : 1.5}
+          emissive={isAnalyzing ? '#60A5FA' : isCompleted ? '#10B981' : hasInsights ? '#3B82F6' : '#2563EB'}
+          emissiveIntensity={isHovered ? 3.0 : isAnalyzing ? 2.8 : isCompleted ? 2.2 : 1.4}
           roughness={0.15}
           metalness={0.85}
         />
@@ -61,7 +77,7 @@ function CentralAiCore({ isHovered, onHover }) {
         <meshStandardMaterial
           color="#60A5FA"
           emissive="#2563EB"
-          emissiveIntensity={0.6}
+          emissiveIntensity={isAnalyzing ? 1.0 : 0.6}
           wireframe
           transparent
           opacity={0.7}
@@ -72,7 +88,7 @@ function CentralAiCore({ isHovered, onHover }) {
       <mesh>
         <octahedronGeometry args={[1.5, 0]} />
         <meshStandardMaterial
-          color="#93C5FD"
+          color={isAnalyzing ? '#BFDBFE' : '#93C5FD'}
           wireframe
           transparent
           opacity={0.35}
@@ -83,9 +99,9 @@ function CentralAiCore({ isHovered, onHover }) {
       <mesh ref={ring1Ref}>
         <torusGeometry args={[1.7, 0.02, 16, 64]} />
         <meshStandardMaterial
-          color="#60A5FA"
-          emissive="#60A5FA"
-          emissiveIntensity={1.2}
+          color={isAnalyzing ? '#93C5FD' : '#60A5FA'}
+          emissive={isAnalyzing ? '#93C5FD' : '#60A5FA'}
+          emissiveIntensity={isAnalyzing ? 2.0 : 1.2}
           transparent
           opacity={0.65}
         />
@@ -94,9 +110,9 @@ function CentralAiCore({ isHovered, onHover }) {
       <mesh ref={ring2Ref}>
         <torusGeometry args={[1.9, 0.015, 16, 64]} />
         <meshStandardMaterial
-          color="#818CF8"
-          emissive="#818CF8"
-          emissiveIntensity={1.0}
+          color={isAnalyzing ? '#C7D2FE' : '#818CF8'}
+          emissive={isAnalyzing ? '#C7D2FE' : '#818CF8'}
+          emissiveIntensity={isAnalyzing ? 1.8 : 1.0}
           transparent
           opacity={0.5}
         />
@@ -110,8 +126,21 @@ function CentralAiCore({ isHovered, onHover }) {
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         <div className="scene-ai-core-badge">
-          <div className="scene-ai-core-dot" />
-          <span className="scene-ai-core-text">AI PROCUREMENT INTELLIGENCE</span>
+          <div
+            className="scene-ai-core-dot"
+            style={{
+              backgroundColor: isAnalyzing ? '#60A5FA' : isCompleted ? '#10B981' : hasInsights ? '#3B82F6' : '#2563EB',
+            }}
+          />
+          <span className="scene-ai-core-text">
+            {isAnalyzing
+              ? 'AUTONOMOUS AGENT ACTIVE'
+              : isCompleted
+              ? 'RECOMMENDATION READY'
+              : hasInsights
+              ? `${insightCount} AI INSIGHTS ACTIVE`
+              : 'PROCUREMIND INTELLIGENCE CORE'}
+          </span>
         </div>
       </Html>
     </group>
@@ -127,9 +156,9 @@ function IntelligenceNode({ node, activeNodeId, onSelectNode }) {
   useFrame(({ clock }) => {
     if (meshRef.current) {
       const t = clock.getElapsedTime() + (node.position[0] * 1.5) + (node.position[1] * 0.8);
-      meshRef.current.rotation.y = t * 0.4;
-      meshRef.current.rotation.x = t * 0.2;
-      meshRef.current.position.y = node.position[1] + Math.sin(t * 1.6) * 0.1;
+      meshRef.current.rotation.y = t * 0.35;
+      meshRef.current.rotation.x = t * 0.18;
+      meshRef.current.position.y = node.position[1] + Math.sin(t * 1.4) * 0.08;
     }
   });
 
@@ -161,7 +190,7 @@ function IntelligenceNode({ node, activeNodeId, onSelectNode }) {
           e.stopPropagation();
           onSelectNode(node.id);
         }}
-        scale={hovered || isSelected ? 1.3 : 1.0}
+        scale={hovered || isSelected ? 1.25 : 1.0}
       >
         {renderGeometry()}
         <meshStandardMaterial
@@ -175,7 +204,7 @@ function IntelligenceNode({ node, activeNodeId, onSelectNode }) {
 
       {/* Wireframe Halo for Selected/Hovered Node */}
       {(hovered || isSelected) && (
-        <mesh position={[0, node.position[1], 0]} scale={1.7}>
+        <mesh position={[0, node.position[1], 0]} scale={1.6}>
           {renderGeometry()}
           <meshBasicMaterial
             color={node.glowColor}
@@ -229,8 +258,8 @@ function EnergyPulse({ start, end, speed = 1, color = '#60A5FA' }) {
   );
 }
 
-// Connecting Lines and Neural Links
-function ConnectionLines({ nodes }) {
+// Connecting Lines representing DATA -> BENCHMARKS -> CORE -> INSIGHTS -> DECISIONS
+function ConnectionLines({ nodes, isAnalyzing }) {
   const centralPoint = [0, 0, 0];
   const marketNode = nodes.find((n) => n.id === 'market-data');
   const vendorNode = nodes.find((n) => n.id === 'vendors');
@@ -238,9 +267,11 @@ function ConnectionLines({ nodes }) {
   const procurementNode = nodes.find((n) => n.id === 'procurement');
   const companyNode = nodes.find((n) => n.id === 'company-behavior');
 
+  const speedMult = isAnalyzing ? 1.8 : 1.0;
+
   return (
     <group>
-      {/* 1. Market Data (Top) -> AI Core */}
+      {/* 1. Market Data (Top / Analysis Layer) -> AI Core */}
       {marketNode && (
         <>
           <Line
@@ -250,11 +281,11 @@ function ConnectionLines({ nodes }) {
             transparent
             opacity={0.6}
           />
-          <EnergyPulse start={marketNode.position} end={centralPoint} speed={0.9} color={marketNode.glowColor} />
+          <EnergyPulse start={marketNode.position} end={centralPoint} speed={0.9 * speedMult} color={marketNode.glowColor} />
         </>
       )}
 
-      {/* 2. Vendors (Left) -> AI Core */}
+      {/* 2. Vendors (Left / Data Layer) -> AI Core */}
       {vendorNode && (
         <>
           <Line
@@ -264,11 +295,11 @@ function ConnectionLines({ nodes }) {
             transparent
             opacity={0.6}
           />
-          <EnergyPulse start={vendorNode.position} end={centralPoint} speed={0.85} color={vendorNode.glowColor} />
+          <EnergyPulse start={vendorNode.position} end={centralPoint} speed={0.85 * speedMult} color={vendorNode.glowColor} />
         </>
       )}
 
-      {/* 3. Expenses (Right) -> AI Core */}
+      {/* 3. Expenses (Right / Data Layer) -> AI Core */}
       {expenseNode && (
         <>
           <Line
@@ -278,25 +309,25 @@ function ConnectionLines({ nodes }) {
             transparent
             opacity={0.6}
           />
-          <EnergyPulse start={expenseNode.position} end={centralPoint} speed={0.85} color={expenseNode.glowColor} />
+          <EnergyPulse start={expenseNode.position} end={centralPoint} speed={0.85 * speedMult} color={expenseNode.glowColor} />
         </>
       )}
 
-      {/* 4. AI Core -> Procurement (Mid-Bottom) */}
+      {/* 4. AI Core -> Procurement (Mid-Bottom / Insight Layer) */}
       {procurementNode && (
         <>
           <Line
             points={[centralPoint, procurementNode.position]}
             color={procurementNode.glowColor}
-            lineWidth={2.4}
+            lineWidth={2.2}
             transparent
             opacity={0.85}
           />
-          <EnergyPulse start={centralPoint} end={procurementNode.position} speed={1.1} color={procurementNode.glowColor} />
+          <EnergyPulse start={centralPoint} end={procurementNode.position} speed={1.1 * speedMult} color={procurementNode.glowColor} />
         </>
       )}
 
-      {/* 5. Procurement -> Company Behavior (Bottom) */}
+      {/* 5. Procurement -> Decision & Actions (Bottom / Decision Layer) */}
       {procurementNode && companyNode && (
         <>
           <Line
@@ -306,49 +337,67 @@ function ConnectionLines({ nodes }) {
             transparent
             opacity={0.55}
           />
-          <EnergyPulse start={procurementNode.position} end={companyNode.position} speed={0.75} color={companyNode.glowColor} />
+          <EnergyPulse start={procurementNode.position} end={companyNode.position} speed={0.75 * speedMult} color={companyNode.glowColor} />
         </>
       )}
     </group>
   );
 }
 
-// Main 3D Scene Controller Component bound dynamically to the active user's dataset
+// Main 3D Scene Controller Component
 export default function ProcureMindScene() {
   const { metrics, currentUser, userData } = useAuth();
   const [activeNodeId, setActiveNodeId] = useState(null);
   const [coreHovered, setCoreHovered] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
+  const [agentStatus, setAgentStatus] = useState({ state: AGENT_STATES.IDLE, message: '' });
   const controlsRef = useRef();
 
-  // Dynamically constructed nodes based strictly on the logged-in user's data
+  useEffect(() => {
+    const unsub = subscribeToAgentState((state) => {
+      setAgentStatus(state);
+    });
+    return unsub;
+  }, []);
+
+  const insightCount = metrics.aiInsightsList?.length || 0;
+  const isAnalyzing =
+    agentStatus.state === AGENT_STATES.INGESTING ||
+    agentStatus.state === AGENT_STATES.ANALYZING ||
+    agentStatus.state === AGENT_STATES.BENCHMARKING ||
+    agentStatus.state === AGENT_STATES.VENDOR_INTELLIGENCE ||
+    agentStatus.state === AGENT_STATES.RISK_ANALYSIS ||
+    agentStatus.state === AGENT_STATES.NEGOTIATING ||
+    agentStatus.state === AGENT_STATES.RECOMMENDATION_READY;
+
+  // Dynamically constructed nodes representing DATA -> ANALYSIS -> INSIGHT -> DECISION
   const dynamicNodes = useMemo(() => {
     return [
       {
         id: 'market-data',
-        name: 'Market Data',
-        category: 'EXTERNAL INTELLIGENCE',
+        name: 'Market Intelligence',
+        category: 'ANALYSIS LAYER',
         position: [0, 2.5, 0.2],
         color: '#06B6D4',
         glowColor: '#22D3EE',
         type: 'top-input',
-        stat: userData?.marketData?.length > 0 ? `${userData.marketData.length} Indices Live` : '0 Indices Tracked',
+        stat: userData?.marketData?.length > 0 ? `${userData.marketData.length} Live Benchmarks` : 'Rate Benchmarks',
         shape: 'tetrahedron',
       },
       {
         id: 'vendors',
-        name: 'Vendors',
-        category: 'SUPPLY BASE',
+        name: 'Vendor Base',
+        category: 'DATA INGESTION',
         position: [-3.6, 0, 0.3],
         color: '#818CF8',
         glowColor: '#A5B4FC',
         type: 'left-input',
-        stat: `${metrics.vendorCount} Vendors`,
+        stat: `${metrics.vendorCount} Suppliers`,
         shape: 'octahedron',
       },
       {
         id: 'expenses',
-        name: 'Expenses',
+        name: 'Spend Ledger',
         category: 'DATA INGESTION',
         position: [3.6, 0, 0.3],
         color: '#10B981',
@@ -359,24 +408,24 @@ export default function ProcureMindScene() {
       },
       {
         id: 'procurement',
-        name: 'Procurement',
-        category: 'DECISION HUB',
+        name: 'Insight Hub',
+        category: 'INSIGHT LAYER',
         position: [0, -1.8, 0.3],
         color: '#3B82F6',
         glowColor: '#60A5FA',
         type: 'decision',
-        stat: `${metrics.procurementCount} Orders`,
+        stat: `${metrics.aiInsightsList?.length || 0} Insights`,
         shape: 'icosahedron',
       },
       {
         id: 'company-behavior',
-        name: 'Company Behavior',
-        category: 'HISTORICAL PATTERNS',
+        name: 'Decision Actions',
+        category: 'DECISION LAYER',
         position: [0, -3.3, 0.2],
         color: '#EC4899',
         glowColor: '#F472B6',
         type: 'context',
-        stat: `${metrics.subscriptionCount} Subscriptions`,
+        stat: `${metrics.pendingDecisionsCount || 0} Decisions`,
         shape: 'tetrahedron',
       },
     ];
@@ -396,12 +445,16 @@ export default function ProcureMindScene() {
       <div className="scene-overlay-header">
         <div className="scene-overlay-left">
           <div className="scene-status-badge">
-            <span className="scene-pulse-dot" />
-            <span>NEURAL DECISION ARCHITECTURE &bull; {currentUser?.companyName || 'WORKSPACE'}</span>
+            <span className={`scene-pulse-dot ${isAnalyzing ? 'pulse-fast' : ''}`} />
+            <span>
+              {isAnalyzing
+                ? `AGENT PROCESSING: ${agentStatus.message}`
+                : `NEURAL DECISION ARCHITECTURE • ${currentUser?.companyName || 'WORKSPACE'}`}
+            </span>
           </div>
-          <h2 className="scene-overlay-title">AI Procurement Intelligence Flow</h2>
+          <h2 className="scene-overlay-title">Autonomous AI Procurement Flow</h2>
           <p className="scene-overlay-subtitle">
-            MARKET &bull; VENDORS ({metrics.vendorCount}) &bull; EXPENSES ({metrics.totalSpendFormatted}) &rarr; [ AI CORE ] &rarr; PROCUREMENT ({metrics.procurementCount})
+            Ingestion ({metrics.vendorCount} Vendors, {metrics.totalSpendFormatted}) &rarr; Benchmarks &rarr; [ Intelligence Core ] &rarr; Insights ({insightCount}) &rarr; Decisions ({metrics.pendingDecisionsCount})
           </p>
         </div>
 
@@ -439,17 +492,17 @@ export default function ProcureMindScene() {
 
           {/* Lighting */}
           <ambientLight intensity={0.85} color="#94A3B8" />
-          <pointLight position={[0, 0, 0]} intensity={3.5} distance={12} color="#60A5FA" />
+          <pointLight position={[0, 0, 0]} intensity={isAnalyzing ? 5.0 : 3.5} distance={12} color="#60A5FA" />
           <pointLight position={[-6, 4, 3]} intensity={1.5} color="#818CF8" />
           <pointLight position={[6, 4, 3]} intensity={1.5} color="#34D399" />
           <pointLight position={[0, -5, 3]} intensity={2.0} color="#3B82F6" />
           <directionalLight position={[0, 8, 6]} intensity={1.2} color="#FFFFFF" />
 
           {/* Gentle Floating Group */}
-          <Float speed={1.2} rotationIntensity={0.12} floatIntensity={0.35}>
-            <Sparkles count={40} scale={12} size={1.8} speed={0.4} color="#60A5FA" opacity={0.45} />
-            <CentralAiCore isHovered={coreHovered} onHover={setCoreHovered} />
-            <ConnectionLines nodes={dynamicNodes} />
+          <Float speed={isAnalyzing ? 2.0 : 1.2} rotationIntensity={0.12} floatIntensity={0.35}>
+            <Sparkles count={isAnalyzing ? 70 : 40} scale={12} size={1.8} speed={isAnalyzing ? 0.8 : 0.4} color="#60A5FA" opacity={0.45} />
+            <CentralAiCore isHovered={coreHovered} onHover={setCoreHovered} insightCount={insightCount} agentState={agentStatus.state} />
+            <ConnectionLines nodes={dynamicNodes} isAnalyzing={isAnalyzing} />
             {dynamicNodes.map((node) => (
               <IntelligenceNode
                 key={node.id}
@@ -472,7 +525,7 @@ export default function ProcureMindScene() {
             maxPolarAngle={Math.PI / 2 + 0.25}
             minPolarAngle={Math.PI / 3 - 0.25}
             autoRotate={autoRotate}
-            autoRotateSpeed={0.6}
+            autoRotateSpeed={isAnalyzing ? 1.5 : 0.6}
             enableDamping={true}
             dampingFactor={0.06}
           />
@@ -483,32 +536,27 @@ export default function ProcureMindScene() {
       <div className="scene-footer-bar">
         <div className="scene-legend-item">
           <span className="legend-dot dot-cyan" />
-          <span className="legend-label">Market Intel ({userData?.marketData?.length || 0})</span>
+          <span className="legend-label">1. Ingestion</span>
         </div>
-        <div className="scene-legend-separator">&bull;</div>
+        <div className="scene-legend-separator">&rarr;</div>
         <div className="scene-legend-item">
           <span className="legend-dot dot-indigo" />
-          <span className="legend-label">Vendors ({metrics.vendorCount})</span>
+          <span className="legend-label">2. Benchmarks</span>
         </div>
         <div className="scene-legend-separator">&rarr;</div>
         <div className="scene-legend-item scene-legend-core">
           <span className="legend-dot dot-blue" />
-          <span className="legend-label">AI Procurement Core</span>
-        </div>
-        <div className="scene-legend-separator">&larr;</div>
-        <div className="scene-legend-item">
-          <span className="legend-dot dot-emerald" />
-          <span className="legend-label">Expenses ({metrics.totalSpendFormatted})</span>
+          <span className="legend-label">3. Intelligence Core</span>
         </div>
         <div className="scene-legend-separator">&rarr;</div>
         <div className="scene-legend-item">
-          <span className="legend-dot dot-blue" />
-          <span className="legend-label">Orders ({metrics.procurementCount})</span>
+          <span className="legend-dot dot-emerald" />
+          <span className="legend-label">4. Insights ({insightCount})</span>
         </div>
         <div className="scene-legend-separator">&rarr;</div>
         <div className="scene-legend-item">
           <span className="legend-dot dot-pink" />
-          <span className="legend-label">Subscriptions ({metrics.subscriptionCount})</span>
+          <span className="legend-label">5. Decisions ({metrics.pendingDecisionsCount})</span>
         </div>
       </div>
 

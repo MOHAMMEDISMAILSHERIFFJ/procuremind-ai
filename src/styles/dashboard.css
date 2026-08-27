@@ -3605,3 +3605,802 @@
   white-space: nowrap;
 }
 
+
+/* ==========================================================================
+   28. Detailed AI Evidence & Analysis Modal Styles
+   ========================================================================== */
+.modal-card-analysis {
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-analysis-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.analysis-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.analysis-detail-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.analysis-detail-category {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.analysis-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.analysis-section-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.analysis-section-text {
+  font-size: 13px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.analysis-evidence-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.analysis-evidence-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.evidence-bullet {
+  color: #3b82f6;
+  font-weight: 900;
+}
+
+.financial-impact-highlight {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.analysis-impact-amount {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1d4ed8;
+}
+
+.recommendation-block {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.insight-financial-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11.5px;
+}
+
+.financial-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.financial-amount {
+  color: #1e3a8a;
+  font-weight: 800;
+}
+
+.btn-primary-trigger {
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+}
+
+
+/* ==========================================================================
+   29. Autonomous AI Procurement Agent Styles
+   ========================================================================== */
+
+/* -- Hero Agent Input Bar ----------------------------------------------- */
+.agent-hero-card {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 24px 28px;
+  color: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  margin-bottom: 20px;
+}
+
+.agent-hero-header {
+  margin-bottom: 16px;
+}
+
+.agent-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #93c5fd;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.agent-hero-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #f8fafc;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+
+.agent-hero-subtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+  max-width: 720px;
+  line-height: 1.5;
+}
+
+.agent-input-form {
+  margin-bottom: 14px;
+}
+
+.agent-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #090e1a;
+  border: 1px solid #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+  border-radius: 10px;
+  padding: 6px 8px 6px 16px;
+  transition: all 0.2s ease;
+}
+
+.agent-input-wrapper:focus-within {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.28);
+}
+
+.agent-prompt-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #f8fafc;
+  font-weight: 500;
+}
+
+.agent-prompt-input::placeholder {
+  color: #64748b;
+}
+
+.btn-ask-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-ask-agent:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.btn-ask-agent:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.agent-suggestions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-suggestions-label {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.agent-suggestions-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid #334155;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.agent-suggestion-chip:hover:not(:disabled) {
+  background: #1e3a8a;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+/* -- Autonomous Agent Activity & Recommendation Panel ------------------ */
+.agent-panel-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 0 !important;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.agent-icon-bubble {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #2563eb;
+}
+
+.agent-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.agent-status-pill.running {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.agent-progress-track {
+  height: 3px;
+  width: 100%;
+  background: #f1f5f9;
+}
+
+.agent-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  transition: width 0.3s ease;
+}
+
+.agent-idle-view {
+  padding: 32px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-idle-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
+  margin-bottom: 4px;
+}
+
+.agent-idle-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.agent-idle-desc {
+  font-size: 13px;
+  color: #64748b;
+  max-width: 520px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.agent-steps-timeline {
+  padding: 16px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.agent-steps-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.agent-steps-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.agent-prompt-tag {
+  font-size: 11.5px;
+  font-style: italic;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.agent-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.agent-step-check {
+  color: #10b981;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.agent-step-spinner {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.agent-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.agent-step-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.agent-step-detail {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+/* -- Recommendation Result Card ----------------------------------------- */
+.agent-recommendation-card {
+  padding: 20px 24px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rec-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.rec-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #1d4ed8;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.rec-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.rec-meta {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+}
+
+.rec-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.rec-confidence-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.rec-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 860px) {
+  .rec-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.rec-metric-block {
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rec-metric-block.highlight {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.rec-metric-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rec-metric-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.rec-metric-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.rec-strategy-block {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #2563eb;
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.rec-strategy-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.rec-strategy-text {
+  font-size: 13px;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.rec-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.rec-decision-notice {
+  font-size: 12px;
+  color: #065f46;
+  font-weight: 600;
+}
+
+.btn-review-decision {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-review-decision:hover {
+  background: #1d4ed8;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.agent-trace-toggle {
+  padding: 8px 24px 14px;
+  background: #ffffff;
+}
+
+.btn-toggle-trace {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  font-size: 11.5px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-toggle-trace:hover {
+  color: #1e293b;
+}
+
+.agent-trace-box {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: #0f172a;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.text-amber {
+  color: #d97706;
+}
+
+.text-emerald {
+  color: #059669;
+}
+
+.pulse-fast {
+  animation: scenePulseFast 0.8s ease-in-out infinite !important;
+}
+
+@keyframes scenePulseFast {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.6; }
+}
+
+
+/* ==========================================================================
+   30. Autonomous Vendor Negotiation Simulation Styles
+   ========================================================================== */
+
+.neg-simulation-container {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.neg-simulation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  user-select: none;
+}
+
+.neg-sim-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: #e0e7ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #3730a3;
+  letter-spacing: 0.05em;
+}
+
+.neg-sim-status-chip {
+  font-size: 11.5px;
+  color: #0f172a;
+}
+
+.neg-simulation-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.neg-dialogue-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.neg-bubble-row {
+  display: flex;
+  width: 100%;
+}
+
+.neg-bubble-row.agent {
+  justify-content: flex-start;
+}
+
+.neg-bubble-row.vendor {
+  justify-content: flex-end;
+}
+
+.neg-bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.neg-bubble-row.agent .neg-bubble {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+  border-bottom-left-radius: 2px;
+}
+
+.neg-bubble-row.vendor .neg-bubble {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  border-bottom-right-radius: 2px;
+  text-align: right;
+}
+
+.neg-bubble-author {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 3px;
+  opacity: 0.8;
+}
+
+.neg-bubble-msg {
+  margin: 0;
+}
+
+.neg-strategy-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.neg-strategy-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.neg-strategy-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .neg-strategy-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.neg-strategy-item {
+  font-size: 11.5px;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.rotate-180 {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+

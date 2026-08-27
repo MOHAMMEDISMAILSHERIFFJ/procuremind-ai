@@ -385,6 +385,23 @@ export const demoInvoices = [
     netAmount: 262400,
     aiFlag: null,
   },
+  {
+    id: 'INV-2026-035-DUP',
+    vendorId: 'VND-003',
+    vendorName: 'SaaSPoint Enterprise Direct',
+    purchaseOrderId: 'PO-2026-0035',
+    description: 'Adobe CC + Figma Org Licenses — Duplicate Billing Re-submission',
+    amount: 144000,
+    formattedAmount: '₹1.44L',
+    status: 'Flagged',
+    statusVariant: 'flagged',
+    invoiceDate: '2026-08-23',
+    dueDate: '2026-10-15',
+    category: 'Software',
+    taxAmount: 25920,
+    netAmount: 118080,
+    aiFlag: 'Duplicate invoice detected: matches INV-2026-035 (same vendor & amount ₹1.44L).',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

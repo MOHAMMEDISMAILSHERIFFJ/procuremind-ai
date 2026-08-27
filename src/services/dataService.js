@@ -1,17 +1,16 @@
 // src/services/dataService.js
 /**
- * ProcureMind Data Service — v2.0
+ * ProcureMind Data Service — v2.5
  *
  * Clean data access layer between React components and localStorage.
  * Components should NEVER read localStorage directly — always use this service.
  *
- * Future: replace localStorage calls with API calls without changing component code.
- *
- * AI integration flow:
- *   Component → dataService → aiService → AI API → Insights → Component
+ * Integrated with the deterministic Intelligence Layer:
+ *   dataService (storage) -> intelligenceService (analysis) -> aiService -> UI
  */
 
-import { buildDemoDataset } from '../data/demoData';
+import { buildDemoDataset } from '../data/demoData.js';
+import { runIntelligenceAnalysis } from './intelligenceService.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Storage key helpers
@@ -186,7 +185,7 @@ export function addVendor(userId, vendor) {
  */
 export function addProcurementRequest(userId, req) {
   const data = getCurrentUserData(userId);
-  const amount = Number(req.estimatedBudget || req.totalAmount) || 0;
+  const amount = Number(req.totalAmount || req.amount || req.estimatedBudget) || 0;
   const formatted = _formatCurrency(amount);
 
   const newReq = {
@@ -286,6 +285,36 @@ export function addInvoice(userId, invoice) {
 }
 
 /**
+ * Convert an AI insight into a formal pending Decision record (Action Layer bridge).
+ * @param {string} userId
+ * @param {Object} insight
+ * @returns {Object} updated full dataset
+ */
+export function createDecisionFromInsight(userId, insight) {
+  const data = getCurrentUserData(userId);
+  const decisionId = `DEC-${Date.now().toString().slice(-6)}`;
+  const newDecision = {
+    id: decisionId,
+    decision: insight.title || 'Review Procurement Action',
+    description: insight.recommendation || insight.description,
+    requestedBy: 'AI Intelligence Engine',
+    amount: insight.financialImpact || 0,
+    formattedAmount: insight.formattedImpact || _formatCurrency(insight.financialImpact || 0),
+    aiRecommendedAction: insight.recommendation || 'Proceed with investigation',
+    estimatedSavings: insight.type === 'savings' ? (insight.financialImpact || 0) : 0,
+    formattedSavings: insight.type === 'savings' ? (insight.formattedImpact || '₹0') : '₹0',
+    status: 'Pending Executive Sign-off',
+    statusVariant: 'under-review',
+    relatedInsightId: insight.id,
+    createdAt: new Date().toISOString(),
+  };
+
+  data.decisions = [newDecision, ...(data.decisions || [])];
+  saveUserData(userId, data);
+  return data;
+}
+
+/**
  * Add a vendor to user's dataset (legacy alias kept for AuthContext compat)
  */
 export function addVendorToUserData(userId, vendor) {
@@ -336,15 +365,12 @@ export function clearProcurementData(userId, companyName) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KPI Metrics Calculator
+// KPI Metrics & Intelligence Calculator
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Calculate all dashboard KPIs from user's dataset.
- * Zero hardcoded values — everything derived from actual records.
- *
- * This is the function the AI service receives data FROM:
- *   dataService.calculateMetrics(userData) → aiService.detectRisks(...)
+ * Calculate all dashboard KPIs & AI Insights dynamically from user's dataset.
+ * Zero hardcoded values — derived strictly from user records and intelligence analysis.
  *
  * @param {Object} data  - Full user dataset
  * @returns {Object} metrics
@@ -361,15 +387,18 @@ export function calculateMetrics(data) {
     totalSpendValue = expenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
   } else if (transactions.length > 0) {
     totalSpendValue = transactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-  } else if (Array.isArray(data.procurementRequests)) {
+  } else if (Array.isArray(data.procurementRequests) && data.procurementRequests.length > 0) {
     totalSpendValue = data.procurementRequests.reduce((acc, r) => acc + (Number(r.totalAmount) || 0), 0);
   } else if (Array.isArray(data.procurements)) {
     totalSpendValue = data.procurements.reduce((acc, r) => acc + (Number(r.totalAmount) || 0), 0);
   }
 
-  // 2. Potential Savings
-  const savingsOpps = Array.isArray(data.savingsOpportunities) ? data.savingsOpportunities : [];
-  const potentialSavingsValue = savingsOpps.reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
+  // 2. Run Intelligence Analysis on the current user dataset
+  const intelligence = runIntelligenceAnalysis(data);
+
+  // Derive potential savings and risk alerts strictly from intelligence output
+  const potentialSavingsValue = intelligence.summary?.potentialSavings || 0;
+  const riskAlertsCount = (intelligence.summary?.highRisk || 0) + (intelligence.summary?.mediumRisk || 0);
 
   // 3. Counts
   const vendorCount = (data.vendors || []).length;
@@ -378,10 +407,9 @@ export function calculateMetrics(data) {
   const contractCount = (data.contracts || []).length;
   const subscriptionCount = (data.subscriptions || []).length;
   const procurementCount = (data.procurementRequests || data.procurements || []).length;
-  const riskAlertsCount = (data.riskAlerts || []).length;
   const pendingDecisionsCount = (data.decisions || []).filter(
     (d) => d.statusVariant === 'under-review' || d.statusVariant === 'warning' ||
-           (d.status && (d.status.includes('Pending') || d.status.includes('Evaluation')))
+           (d.status && (d.status.includes('Pending') || d.status.includes('Evaluation') || d.status.includes('Review')))
   ).length;
   const outcomesCount = (data.outcomes || []).length;
 
@@ -411,36 +439,22 @@ export function calculateMetrics(data) {
     }));
   }
 
-  // 5. AI Insights List (for AiInsights component)
-  const aiInsightsList = [
-    ...(data.riskAlerts || []),
-    ...(data.savingsOpportunities || []),
-  ];
+  // 5. AI Insights List — populated from intelligence analysis
+  const aiInsightsList = intelligence.insights || [];
 
-  // 6. Priority Actions List (for PriorityActions component)
+  // 6. Priority Actions List — derived from actionable intelligence
   const priorityActionsList = [];
-  (data.riskAlerts || []).forEach((ra, idx) => {
+  aiInsightsList.slice(0, 6).forEach((ins, idx) => {
     priorityActionsList.push({
-      id: `act-ra-${idx}`,
-      title: ra.title,
-      subtitle: ra.impact || ra.description,
-      priority: ra.severity === 'high' ? 'High' : 'Medium',
-      priorityVariant: ra.severity === 'high' ? 'high' : 'medium',
-      department: ra.category || 'Procurement',
-      actionLabel: 'Review Risk',
-      eta: 'Due Today',
-    });
-  });
-  (data.savingsOpportunities || []).forEach((so, idx) => {
-    priorityActionsList.push({
-      id: `act-so-${idx}`,
-      title: so.title,
-      subtitle: so.impact || so.description,
-      priority: 'Medium',
-      priorityVariant: 'medium',
-      department: so.category || 'Finance',
-      actionLabel: 'Capture Saving',
-      eta: 'In 3 days',
+      id: `act-ins-${idx}`,
+      title: ins.title,
+      subtitle: ins.recommendation || ins.description,
+      priority: ins.severity === 'high' ? 'High' : ins.severity === 'savings' ? 'Medium' : 'Medium',
+      priorityVariant: ins.severity === 'high' ? 'high' : ins.severity === 'savings' ? 'medium' : 'medium',
+      department: ins.category || 'Procurement',
+      actionLabel: ins.type === 'savings' ? 'Capture Saving' : ins.type === 'duplicate' ? 'Hold Invoice' : 'Review Risk',
+      eta: ins.severity === 'high' ? 'Due Today' : 'In 2 days',
+      insightRef: ins,
     });
   });
 
@@ -461,6 +475,8 @@ export function calculateMetrics(data) {
     categoryBreakdown,
     aiInsightsList,
     priorityActionsList,
+    intelligenceSummary: intelligence.summary,
+    isEmptyState: intelligence.isEmptyState,
   };
 }
 
@@ -469,10 +485,11 @@ export function calculateMetrics(data) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function _formatCurrency(val) {
-  if (!val || val === 0) return '₹0';
-  if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr`;
-  if (val >= 100000)   return `₹${(val / 100000).toFixed(1)}L`;
-  return `₹${val.toLocaleString('en-IN')}`;
+  const n = Number(val) || 0;
+  if (n === 0) return '₹0';
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
+  if (n >= 100000)   return `₹${(n / 100000).toFixed(1)}L`;
+  return `₹${n.toLocaleString('en-IN')}`;
 }
 
 function _emptyMetrics() {
@@ -483,6 +500,8 @@ function _emptyMetrics() {
     vendorCount: 0, invoiceCount: 0, purchaseOrderCount: 0,
     contractCount: 0, subscriptionCount: 0, procurementCount: 0, outcomesCount: 0,
     categoryBreakdown: [], aiInsightsList: [], priorityActionsList: [],
+    intelligenceSummary: { totalInsights: 0, highRisk: 0, mediumRisk: 0, lowRisk: 0, potentialSavings: 0 },
+    isEmptyState: true,
   };
 }
 

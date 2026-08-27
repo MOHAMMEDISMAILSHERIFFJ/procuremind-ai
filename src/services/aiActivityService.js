@@ -23,56 +23,46 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const AI_ACTIVITY_SEQUENCES = {
-  procurement_analysis: [
-    { phase: 'queued',     message: 'Procurement request queued for analysis...' },
-    { phase: 'analyzing',  message: 'Reading company procurement profile...' },
-    { phase: 'analyzing',  message: 'Comparing historical vendor prices...' },
-    { phase: 'processing', message: 'Running market benchmark comparison...' },
-    { phase: 'processing', message: 'Calculating deviation from baseline pricing...' },
-    { phase: 'processing', message: 'Checking contract terms and compliance...' },
-    { phase: 'complete',   message: 'Procurement analysis complete. Recommendation ready.' },
+  full_pipeline: [
+    { phase: 'queued',     message: '1/10 Loading user procurement & ERP data...' },
+    { phase: 'analyzing',  message: '2/10 Normalizing purchase orders, invoices, and expense ledger...' },
+    { phase: 'analyzing',  message: '3/10 Comparing quoted item prices with historical benchmarks...' },
+    { phase: 'processing', message: '4/10 Scanning for duplicate transactions & identical vendor billings...' },
+    { phase: 'processing', message: '5/10 Analyzing category spending patterns and budget deviation limits...' },
+    { phase: 'processing', message: '6/10 Evaluating vendor compliance, performance scores, and concentration...' },
+    { phase: 'processing', message: '7/10 Checking SaaS subscription seat utilization & idle licenses...' },
+    { phase: 'processing', message: '8/10 Calculating potential savings opportunities & volume tiers...' },
+    { phase: 'processing', message: '9/10 Generating prioritized risk alerts & anomaly scores...' },
+    { phase: 'complete',   message: '10/10 Intelligence synthesis complete. Recommendations & insights ready.' },
   ],
-  risk_detection: [
-    { phase: 'queued',     message: 'Risk detection scan initiated...' },
-    { phase: 'analyzing',  message: 'Scanning active purchase orders...' },
-    { phase: 'processing', message: 'Checking vendor compliance scores...' },
-    { phase: 'processing', message: 'Identifying single-source procurement risks...' },
-    { phase: 'complete',   message: 'Risk detection complete.' },
+  duplicate_scan: [
+    { phase: 'queued',     message: 'Initiating duplicate transaction audit...' },
+    { phase: 'analyzing',  message: 'Cross-matching invoice numbers, PO references, and amounts...' },
+    { phase: 'processing', message: 'Scoring date proximity and vendor duplicate probabilities...' },
+    { phase: 'complete',   message: 'Duplicate transaction audit complete.' },
   ],
-  vendor_analysis: [
+  price_benchmark: [
+    { phase: 'queued',     message: 'Loading market indices & historical unit price index...' },
+    { phase: 'analyzing',  message: 'Evaluating unit price variance across historical requisition archives...' },
+    { phase: 'processing', message: 'Flagging rate hikes >5% above baseline...' },
+    { phase: 'complete',   message: 'Price benchmark analysis complete.' },
+  ],
+  vendor_risk: [
     { phase: 'queued',     message: 'Vendor intelligence query received...' },
-    { phase: 'analyzing',  message: 'Pulling vendor transaction history...' },
-    { phase: 'processing', message: 'Computing performance and risk scores...' },
-    { phase: 'processing', message: 'Comparing vendor pricing trends...' },
-    { phase: 'complete',   message: 'Vendor analysis complete.' },
+    { phase: 'analyzing',  message: 'Pulling vendor transaction history & compliance certifications...' },
+    { phase: 'processing', message: 'Computing composite vendor risk scores (0-100)...' },
+    { phase: 'complete',   message: 'Vendor risk evaluation complete.' },
   ],
   savings_detection: [
     { phase: 'queued',     message: 'Savings intelligence scan triggered...' },
-    { phase: 'analyzing',  message: 'Evaluating subscription seat utilisation...' },
-    { phase: 'analyzing',  message: 'Scanning for duplicate invoice patterns...' },
-    { phase: 'processing', message: 'Identifying bulk-order consolidation opportunities...' },
-    { phase: 'processing', message: 'Calculating potential savings per category...' },
-    { phase: 'complete',   message: 'Savings opportunities identified. Review recommended.' },
-  ],
-  negotiation: [
-    { phase: 'queued',     message: 'Negotiation strategy engine initialising...' },
-    { phase: 'analyzing',  message: 'Reviewing vendor historical pricing...' },
-    { phase: 'processing', message: 'Searching available vendor alternatives...' },
-    { phase: 'processing', message: 'Calculating potential negotiation leverage...' },
-    { phase: 'processing', message: 'Preparing negotiation recommendation...' },
-    { phase: 'complete',   message: 'Negotiation strategy ready.' },
-  ],
-  subscription_audit: [
-    { phase: 'queued',     message: 'Subscription audit queued...' },
-    { phase: 'analyzing',  message: 'Reading active SaaS licences...' },
-    { phase: 'processing', message: 'Checking seat utilisation data...' },
-    { phase: 'processing', message: 'Identifying idle accounts and dormant users...' },
-    { phase: 'complete',   message: 'Subscription audit complete. Optimisations identified.' },
+    { phase: 'analyzing',  message: 'Evaluating subscription seat utilisation & idle licenses...' },
+    { phase: 'processing', message: 'Identifying bulk-order consolidation & volume discount opportunities...' },
+    { phase: 'complete',   message: 'Savings opportunities calculated. Review ready.' },
   ],
   early_warning: [
-    { phase: 'queued',     message: 'Early warning scan triggered...' },
-    { phase: 'analyzing',  message: 'Scanning contract renewal timelines...' },
-    { phase: 'processing', message: 'Evaluating market price movements...' },
+    { phase: 'queued',     message: 'Early warning heuristic monitor initialised...' },
+    { phase: 'analyzing',  message: 'Scanning contract renewal dates and single-source dependencies...' },
+    { phase: 'processing', message: 'Evaluating price inflation exposure...' },
     { phase: 'complete',   message: 'Early warning scan complete.' },
   ],
 };
@@ -101,15 +91,11 @@ export function subscribeToAiActivity(listener) {
  * Future: replace with real SSE/WebSocket event listener from AI API.
  *
  * @param {string} operationType  - Key from AI_ACTIVITY_SEQUENCES
- * @param {number} [stepDelayMs]  - Delay between steps (default 700ms)
+ * @param {number} [stepDelayMs]  - Delay between steps (default 500ms)
  * @returns {Promise<void>}
  */
-export async function simulateAiActivity(operationType, stepDelayMs = 700) {
-  const sequence = AI_ACTIVITY_SEQUENCES[operationType];
-  if (!sequence) {
-    console.warn(`[aiActivityService] Unknown operation type: ${operationType}`);
-    return;
-  }
+export async function simulateAiActivity(operationType, stepDelayMs = 500) {
+  const sequence = AI_ACTIVITY_SEQUENCES[operationType] || AI_ACTIVITY_SEQUENCES.full_pipeline;
 
   for (let i = 0; i < sequence.length; i++) {
     const step = sequence[i];
@@ -127,26 +113,6 @@ export async function simulateAiActivity(operationType, stepDelayMs = 700) {
       await new Promise((resolve) => setTimeout(resolve, stepDelayMs));
     }
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Convenience function: Run analysis + emit activity simultaneously
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Run an AI operation while simultaneously emitting activity events to the UI.
- *
- * @param {string}   operationType  - From AI_ACTIVITY_SEQUENCES keys
- * @param {Function} aiOperation    - async function that returns AI result
- * @returns {Promise<*>} - The AI operation result
- */
-export async function runWithActivity(operationType, aiOperation) {
-  // Start emitting activity events (non-blocking)
-  simulateAiActivity(operationType, 650);
-
-  // Run the actual AI operation in parallel
-  const result = await aiOperation();
-  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

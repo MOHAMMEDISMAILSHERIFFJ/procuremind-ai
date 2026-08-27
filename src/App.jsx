@@ -13,7 +13,8 @@ import { SpendingChart } from './components/dashboard/SpendingChart';
 import { RecentProcurement } from './components/dashboard/RecentProcurement';
 import { PriorityActions } from './components/dashboard/PriorityActions';
 import { ProductMessage } from './components/dashboard/ProductMessage';
-import { AiActivityFeed } from './components/dashboard/AiActivityFeed';
+import { ProcureMindAgentBar } from './components/dashboard/ProcureMindAgentBar';
+import { ProcureMindAgentPanel } from './components/dashboard/ProcureMindAgentPanel';
 import { LoadDemoData } from './components/dashboard/LoadDemoData';
 import {
   ProcurementModule,
@@ -29,7 +30,7 @@ import './styles/dashboard.css';
 // Dashboard layout — shows only when authenticated
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DashboardView() {
+function DashboardView({ onNavigateToTab }) {
   const { userData } = useAuth();
   const [demoLoaded, setDemoLoaded] = useState(false);
 
@@ -49,7 +50,13 @@ function DashboardView() {
         <LoadDemoData onDataLoaded={() => setDemoLoaded(true)} />
       )}
 
-      {/* 3D Intelligence Core — live from user data */}
+      {/* ── Autonomous AI Procurement Agent Input Bar ──────────────────── */}
+      <ProcureMindAgentBar />
+
+      {/* ── Autonomous Agent Activity & Recommendation Panel ────────────── */}
+      <ProcureMindAgentPanel onNavigateToDecisions={() => onNavigateToTab && onNavigateToTab('decisions')} />
+
+      {/* 3D Intelligence Core — live from user data and agent state */}
       <ProcureMindScene />
 
       {/* AI Insights — live from user data */}
@@ -63,9 +70,6 @@ function DashboardView() {
 
       {/* Recent Procurement Requisitions */}
       <RecentProcurement />
-
-      {/* AI Activity Timeline Feed */}
-      <AiActivityFeed />
 
       {/* Product Message */}
       <ProductMessage />
@@ -101,76 +105,52 @@ function SettingsView() {
             <span className="settings-value">@{currentUser?.username}</span>
           </div>
           <div className="settings-field">
-            <span className="settings-label">Office Email</span>
+            <span className="settings-label">Work Email</span>
             <span className="settings-value">{currentUser?.email}</span>
           </div>
           <div className="settings-field">
-            <span className="settings-label">Organisation</span>
+            <span className="settings-label">Company / Entity</span>
             <span className="settings-value">{currentUser?.companyName}</span>
           </div>
           <div className="settings-field">
-            <span className="settings-label">Job Role</span>
+            <span className="settings-label">Designation / Role</span>
             <span className="settings-value">{currentUser?.jobRole}</span>
           </div>
           <div className="settings-field">
             <span className="settings-label">Department</span>
             <span className="settings-value">{currentUser?.department}</span>
           </div>
-          <div className="settings-field settings-field-full">
+          <div className="settings-field" style={{ gridColumn: '1 / -1' }}>
+            <span className="settings-label">Company Description</span>
+            <span className="settings-value">{currentUser?.companyDescription || '—'}</span>
+          </div>
+          <div className="settings-field" style={{ gridColumn: '1 / -1' }}>
             <span className="settings-label">Procurement Scope</span>
-            <span className="settings-value">
-              {currentUser?.procurementTypes || 'General Enterprise Procurement'}
-            </span>
-          </div>
-          <div className="settings-field settings-field-full">
-            <span className="settings-label">Company Profile</span>
-            <span className="settings-value">
-              {currentUser?.companyDescription || 'Enterprise Organisation'}
-            </span>
-          </div>
-          <div className="settings-field settings-field-full">
-            <span className="settings-label">AI Engine Status</span>
-            <span className="settings-value" style={{ color: '#10B981', fontWeight: 700 }}>
-              ● Active — Multi-Tenant Isolated Sandbox (Prototype v1.0)
-            </span>
-          </div>
-          <div className="settings-field settings-field-full">
-            <span className="settings-label">Account Created</span>
-            <span className="settings-value">
-              {currentUser?.accountCreatedAt
-                ? new Date(currentUser.accountCreatedAt).toLocaleString('en-IN', {
-                    dateStyle: 'long',
-                    timeStyle: 'short',
-                  })
-                : '—'}
-            </span>
+            <span className="settings-value">{currentUser?.procurementTypes || currentUser?.workDescription || '—'}</span>
           </div>
         </div>
-      </div>
 
-      {/* Future AI API Configuration */}
-      <div className="card" style={{ padding: '24px', marginTop: 16 }}>
-        <div className="card-header-main" style={{ marginBottom: 12 }}>
-          <h3 className="card-title" style={{ fontSize: 14 }}>
-            Future AI API Configuration
-          </h3>
+        {/* API Configuration Info for Future Real AI */}
+        <div style={{ marginTop: 24, padding: '16px 20px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0' }}>
+          <h4 style={{ margin: '0 0 6px', fontSize: 13.5, color: '#0F172A', fontWeight: 700 }}>
+            ProcureMind AI Integration Endpoint
+          </h4>
+          <p style={{ margin: '0 0 10px', fontSize: 12.5, color: '#64748B' }}>
+            When connecting your team&rsquo;s custom AI model, configure environment variables in <code>.env</code>:
+          </p>
+          <pre style={{ margin: 0, padding: '10px 14px', background: '#0F172A', color: '#60A5FA', borderRadius: 6, fontSize: 12, overflowX: 'auto' }}>
+            VITE_AI_API_ENDPOINT=https://your-model-api.com/v1{'\n'}
+            VITE_AI_API_KEY=your-secret-api-key
+          </pre>
         </div>
-        <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: 0 }}>
-          When integrating the AI model, set the following environment variables
-          in <code style={{ background: '#F1F5F9', padding: '1px 5px', borderRadius: 3 }}>.env</code>:
-          <br />
-          <code style={{ display: 'block', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 6, padding: '10px 14px', marginTop: 8, fontSize: 12, color: '#1E3A8A' }}>
-            VITE_AI_API_ENDPOINT=https://your-model-endpoint.com/api<br />
-            VITE_AI_API_KEY=your-secret-key-here
-          </code>
-          Then update <code>src/services/aiService.js</code> to use{' '}
-          <code>import.meta.env.VITE_AI_API_ENDPOINT</code> in each function.
-          Never commit <code>.env</code> to GitHub — it is already in <code>.gitignore</code>.
-        </p>
       </div>
     </main>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Help view — shows getting started tips
+// ─────────────────────────────────────────────────────────────────────────────
 
 function HelpView() {
   const { currentUser } = useAuth();
@@ -183,17 +163,16 @@ function HelpView() {
           </div>
           <div>
             <h3 className="card-title">ProcureMind Help & Support</h3>
-            <p className="card-subtitle">AI Procurement Intelligence Platform</p>
+            <p className="card-subtitle">Autonomous AI Procurement Intelligence Platform</p>
           </div>
         </div>
         <div style={{ fontSize: 13.5, color: '#475569', lineHeight: 1.8 }}>
-          <strong>Getting Started:</strong>
+          <strong>Autonomous Procurement Workflow:</strong>
           <ol style={{ paddingLeft: 20, marginTop: 8 }}>
-            <li>Create your account and set up your company profile.</li>
-            <li>Add vendors via the Vendors module.</li>
-            <li>Log procurement requisitions in the Procurement module.</li>
-            <li>Add SaaS subscriptions in the Subscriptions module.</li>
-            <li>The dashboard KPIs and AI insights update automatically.</li>
+            <li>Ask ProcureMind on the dashboard: e.g. <em>&ldquo;50 laptops for engineering&rdquo;</em>.</li>
+            <li>The agent automatically structures requirements, checks vendor history, and calculates rate card benchmarks.</li>
+            <li>If price anomalies or savings opportunities are detected, a Decision record is automatically created for executive review.</li>
+            <li>Dashboard metrics, risk alerts, and savings counters update in real time.</li>
           </ol>
           <br />
           <strong>Demo Data:</strong>
@@ -254,7 +233,7 @@ function AppContent() {
       case 'settings':      return <SettingsView />;
       case 'help':          return <HelpView />;
       case 'dashboard':
-      default:              return <DashboardView />;
+      default:              return <DashboardView onNavigateToTab={setActiveTab} />;
     }
   };
 

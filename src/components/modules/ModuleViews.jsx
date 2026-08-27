@@ -394,15 +394,35 @@ export const ProcurementModule = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const AiAnalysisModule = () => {
-  const { userData, metrics } = useAuth();
-  const risks   = userData?.riskAlerts || [];
-  const savings = userData?.savingsOpportunities || [];
-  const hasData = risks.length > 0 || savings.length > 0;
+  const { metrics, createDecisionFromInsight } = useAuth();
+  const [filterType, setFilterType] = useState('all');
+  const [selectedInsight, setSelectedInsight] = useState(null);
+  const [actionSuccessId, setActionSuccessId] = useState(null);
+
+  const allInsights = metrics.aiInsightsList || [];
+  const hasData = allInsights.length > 0;
+
+  const filteredInsights = filterType === 'all'
+    ? allInsights
+    : allInsights.filter((ins) => {
+        if (filterType === 'risk') return ins.severity === 'high' || ins.type === 'vendor_alert' || ins.type === 'early_warning';
+        if (filterType === 'price_dup') return ins.type === 'price_anomaly' || ins.type === 'duplicate' || ins.type === 'budget_deviation';
+        if (filterType === 'savings') return ins.type === 'savings' || ins.severity === 'savings';
+        return true;
+      });
+
+  const handleTakeAction = (insight) => {
+    if (createDecisionFromInsight) {
+      createDecisionFromInsight(insight);
+      setActionSuccessId(insight.id);
+      setTimeout(() => setActionSuccessId(null), 3000);
+    }
+  };
 
   return (
     <ModuleContainer
       title="AI Intelligence Analysis"
-      subtitle="Risk detection, savings intelligence, vendor analysis"
+      subtitle="Deterministic heuristic scanners: duplicates, pricing anomalies, vendor risk, and savings"
       icon={<AiAnalysisIcon size={22} />}
       badge="AI"
     >
@@ -410,12 +430,12 @@ export const AiAnalysisModule = () => {
         <div className="card" style={{ padding: 36 }}>
           <EmptyState
             icon={<SparklesIcon size={28} />}
-            title="AI Engine Ready — No Data to Analyze"
-            subtitle="Add vendors, procurement requests, or subscriptions. The AI analysis engine will detect risks, savings opportunities, and anomalies automatically."
+            title="AI Intelligence Engine Active — No Anomalies to Display"
+            subtitle="Add vendors, procurement requests, or software subscriptions. The deterministic intelligence engine evaluates all records across 8 dimensions automatically."
           />
           <div className="ai-feed-footer-note" style={{ marginTop: 16 }}>
             <SparklesIcon size={12} />
-            <span>Connect real AI API via <code>aiService.js</code> when your team's model is ready. Mock analysis runs on data you add.</span>
+            <span>Connect real AI API via <code>aiService.js</code> when your team's model is ready. Deterministic analysis runs live on your data.</span>
           </div>
         </div>
       ) : (
@@ -423,16 +443,16 @@ export const AiAnalysisModule = () => {
           {/* Summary KPIs */}
           <div className="analysis-kpi-row">
             <div className="analysis-kpi-card">
-              <span className="analysis-kpi-label">Risk Alerts</span>
+              <span className="analysis-kpi-label">Active AI Insights</span>
+              <span className="analysis-kpi-value">{allInsights.length}</span>
+            </div>
+            <div className="analysis-kpi-card">
+              <span className="analysis-kpi-label">High Risk Findings</span>
               <span className="analysis-kpi-value risk">{metrics.riskAlertsCount}</span>
             </div>
             <div className="analysis-kpi-card">
-              <span className="analysis-kpi-label">Savings Opportunities</span>
-              <span className="analysis-kpi-value savings">{savings.length}</span>
-            </div>
-            <div className="analysis-kpi-card">
-              <span className="analysis-kpi-label">Total Potential Savings</span>
-              <span className="analysis-kpi-value">{metrics.potentialSavingsFormatted}</span>
+              <span className="analysis-kpi-label">Identified Savings</span>
+              <span className="analysis-kpi-value savings">{metrics.potentialSavingsFormatted}</span>
             </div>
             <div className="analysis-kpi-card">
               <span className="analysis-kpi-label">Pending Decisions</span>
@@ -440,51 +460,100 @@ export const AiAnalysisModule = () => {
             </div>
           </div>
 
-          {/* Risk Alerts */}
-          {risks.length > 0 && (
-            <div className="card module-table-card">
-              <div className="card-header">
-                <h3 className="card-title" style={{ color: '#EF4444' }}>⚠ Risk Alerts</h3>
-              </div>
-              <div className="analysis-insight-list">
-                {risks.map((ra) => (
-                  <div key={ra.id} className={`analysis-insight-item risk-${ra.severity}`}>
-                    <div className="insight-severity-dot" />
-                    <div className="insight-content">
-                      <p className="insight-title">{ra.title}</p>
-                      <p className="insight-desc">{ra.description}</p>
-                      <p className="insight-impact">{ra.impact}</p>
-                    </div>
-                    <span className="insight-confidence">{ra.confidence}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Filter Tab Bar */}
+          <div className="module-tab-bar" style={{ marginTop: 4 }}>
+            <button
+              type="button"
+              className={`module-tab-btn ${filterType === 'all' ? 'active' : ''}`}
+              onClick={() => setFilterType('all')}
+            >
+              All Findings <span className="tab-count-badge">{allInsights.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`module-tab-btn ${filterType === 'price_dup' ? 'active' : ''}`}
+              onClick={() => setFilterType('price_dup')}
+            >
+              Price &amp; Duplicates <span className="tab-count-badge">{allInsights.filter(i => i.type === 'price_anomaly' || i.type === 'duplicate' || i.type === 'budget_deviation').length}</span>
+            </button>
+            <button
+              type="button"
+              className={`module-tab-btn ${filterType === 'risk' ? 'active' : ''}`}
+              onClick={() => setFilterType('risk')}
+            >
+              Vendor &amp; Contract Risks <span className="tab-count-badge">{allInsights.filter(i => i.severity === 'high' || i.type === 'vendor_alert' || i.type === 'early_warning').length}</span>
+            </button>
+            <button
+              type="button"
+              className={`module-tab-btn ${filterType === 'savings' ? 'active' : ''}`}
+              onClick={() => setFilterType('savings')}
+            >
+              Savings Opportunities <span className="tab-count-badge">{allInsights.filter(i => i.type === 'savings' || i.severity === 'savings').length}</span>
+            </button>
+          </div>
 
-          {/* Savings Opportunities */}
-          {savings.length > 0 && (
-            <div className="card module-table-card">
-              <div className="card-header">
-                <h3 className="card-title" style={{ color: '#10B981' }}>💡 Savings Opportunities</h3>
-              </div>
-              <div className="analysis-insight-list">
-                {savings.map((so) => (
-                  <div key={so.id} className="analysis-insight-item risk-savings">
-                    <div className="insight-severity-dot savings" />
-                    <div className="insight-content">
-                      <p className="insight-title">{so.title}</p>
-                      <p className="insight-desc">{so.description}</p>
-                      <p className="insight-impact">{so.impact}</p>
+          {/* Insights List */}
+          <div className="card module-table-card">
+            <div className="analysis-insight-list">
+              {filteredInsights.map((ins) => (
+                <div
+                  key={ins.id}
+                  className={`analysis-insight-item risk-${ins.severity || 'info'}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedInsight(selectedInsight?.id === ins.id ? null : ins)}
+                >
+                  <div className={`insight-severity-dot ${ins.type === 'savings' ? 'savings' : ''}`} />
+                  <div className="insight-content">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <p className="insight-title" style={{ margin: 0 }}>{ins.title}</p>
+                      <Badge variant={ins.severity === 'high' ? 'risk-high' : ins.type === 'savings' ? 'savings' : 'warning'} size="sm">
+                        {ins.type ? ins.type.replace('_', ' ').toUpperCase() : 'INSIGHT'}
+                      </Badge>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <span className="insight-amount">{so.formattedAmount || formatCurrency(so.amount)}</span>
-                      <br />
-                      <span className="insight-confidence">{so.confidence}</span>
+                    <p className="insight-desc">{ins.description}</p>
+                    {ins.evidence && ins.evidence.length > 0 && (
+                      <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12, color: '#475569' }}>
+                        {ins.evidence.map((ev, idx) => (
+                          <li key={idx}>{ev}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {ins.recommendation && (
+                      <p style={{ margin: '6px 0 0', fontSize: 12, color: '#065F46', fontWeight: 500 }}>
+                        <strong>Recommendation:</strong> {ins.recommendation}
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: 16 }}>
+                    {ins.financialImpact > 0 && (
+                      <div className="insight-amount" style={{ color: ins.type === 'savings' ? '#10B981' : '#1E3A8A' }}>
+                        {ins.formattedImpact || formatCurrency(ins.financialImpact)}
+                      </div>
+                    )}
+                    <span className="insight-confidence">{ins.confidence}</span>
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
+                        className="btn-add-record"
+                        style={{ padding: '4px 10px', fontSize: 11 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTakeAction(ins);
+                        }}
+                      >
+                        <SparklesIcon size={12} />
+                        <span>Action</span>
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {actionSuccessId && (
+            <div className="demo-load-success-banner" style={{ marginTop: 8 }}>
+              <span>Decision created from AI finding and added to Decisions &amp; Outcomes.</span>
             </div>
           )}
         </div>

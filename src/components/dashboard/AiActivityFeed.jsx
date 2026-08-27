@@ -1,10 +1,9 @@
 // src/components/dashboard/AiActivityFeed.jsx
 /**
- * AI Activity Feed — Real-time AI operation timeline panel.
+ * AI Activity Monitor — Real-time Intelligence Processing Timeline.
  *
- * Subscribes to the aiActivityService pub-sub and shows live AI events.
- * Future: replace simulateAiActivity() with real SSE/WebSocket events
- * from the AI API endpoint without any changes to this component.
+ * Subscribes to the aiActivityService pub-sub and visualizes the
+ * 10-stage intelligence processing pipeline.
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { SparklesIcon, CheckCircleIcon } from '../icons/Icons';
@@ -13,6 +12,7 @@ import {
   simulateAiActivity,
   clearActivityHistory,
 } from '../../services/aiActivityService';
+import { useAuth } from '../../context/useAuth';
 
 // Phase badge styling
 const PHASE_STYLES = {
@@ -24,13 +24,12 @@ const PHASE_STYLES = {
 };
 
 const OPERATION_LABELS = {
-  procurement_analysis: 'Procurement Analysis',
-  risk_detection:       'Risk Detection',
-  vendor_analysis:      'Vendor Intelligence',
-  savings_detection:    'Savings Intelligence',
-  negotiation:          'Negotiation Strategy',
-  subscription_audit:   'Subscription Audit',
-  early_warning:        'Early Warning Scan',
+  full_pipeline:    '⚡ Run Full Intelligence Pipeline (10 Steps)',
+  duplicate_scan:   'Duplicate Detection',
+  price_benchmark:  'Price Benchmark',
+  vendor_risk:      'Vendor Risk Scan',
+  savings_detection:'Savings Detection',
+  early_warning:    'Early Warning Scan',
 };
 
 // Pulse animation dot
@@ -51,23 +50,30 @@ function PulseDot({ color }) {
 }
 
 export function AiActivityFeed() {
+  const { refreshData } = useAuth();
   const [events, setEvents] = useState([]);
-  const [activeOp, setActiveOp] = useState(null);   // currently running operation
+  const [activeOp, setActiveOp] = useState(null);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
   const feedRef = useRef(null);
 
   // Subscribe to activity events
   useEffect(() => {
     const unsub = subscribeToAiActivity((event) => {
-      setEvents((prev) => [event, ...prev].slice(0, 30)); // keep last 30
+      setEvents((prev) => [event, ...prev].slice(0, 40));
+
+      if (event.totalSteps > 0) {
+        setProgress(Math.round(((event.stepIndex + 1) / event.totalSteps) * 100));
+      }
 
       if (event.phase === 'complete' || event.phase === 'error') {
         setRunning(false);
         setActiveOp(null);
+        if (refreshData) refreshData();
       }
     });
     return unsub;
-  }, []);
+  }, [refreshData]);
 
   // Auto-scroll to top when new events arrive
   useEffect(() => {
@@ -76,16 +82,19 @@ export function AiActivityFeed() {
     }
   }, [events]);
 
-  const handleRunDemo = async (opType) => {
+  const handleRunOperation = async (opType) => {
     if (running) return;
     setRunning(true);
     setActiveOp(opType);
-    await simulateAiActivity(opType, 720);
+    setProgress(5);
+    const delay = opType === 'full_pipeline' ? 420 : 550;
+    await simulateAiActivity(opType, delay);
   };
 
   const handleClear = () => {
     setEvents([]);
     clearActivityHistory();
+    setProgress(0);
   };
 
   return (
@@ -97,9 +106,9 @@ export function AiActivityFeed() {
             <SparklesIcon size={18} />
           </div>
           <div>
-            <h3 className="card-title">AI Activity Monitor</h3>
+            <h3 className="card-title">AI Intelligence Processing Engine</h3>
             <p className="card-subtitle">
-              Real-time intelligence operation timeline &bull; Event-driven architecture
+              Real-time deterministic &amp; neural pipeline monitor &bull; 10-Stage Pipeline
             </p>
           </div>
         </div>
@@ -107,7 +116,7 @@ export function AiActivityFeed() {
           {running && (
             <span className="ai-running-badge">
               <PulseDot color="#3B82F6" />
-              <span>{OPERATION_LABELS[activeOp] || 'Processing'}</span>
+              <span>{OPERATION_LABELS[activeOp] || 'Analyzing Data...'} ({progress}%)</span>
             </span>
           )}
           {events.length > 0 && !running && (
@@ -116,24 +125,39 @@ export function AiActivityFeed() {
               className="btn-ai-clear"
               onClick={handleClear}
             >
-              Clear
+              Clear Log
             </button>
           )}
         </div>
       </div>
 
+      {/* Progress Bar when running */}
+      {running && (
+        <div style={{ height: '3px', width: '100%', backgroundColor: '#E2E8F0', overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${progress}%`,
+              backgroundColor: '#2563EB',
+              transition: 'width 0.3s ease',
+            }}
+          />
+        </div>
+      )}
+
       {/* Trigger Buttons */}
       <div className="ai-trigger-row">
-        <span className="ai-trigger-label">Simulate AI Operation:</span>
+        <span className="ai-trigger-label">Trigger Analysis:</span>
         <div className="ai-trigger-buttons">
           {Object.entries(OPERATION_LABELS).map(([key, label]) => (
             <button
               key={key}
               type="button"
-              className={`btn-ai-trigger ${activeOp === key && running ? 'active' : ''}`}
-              onClick={() => handleRunDemo(key)}
+              className={`btn-ai-trigger ${activeOp === key && running ? 'active' : ''} ${key === 'full_pipeline' ? 'btn-primary-trigger' : ''}`}
+              onClick={() => handleRunOperation(key)}
               disabled={running}
-              title={`Run simulated ${label}`}
+              title={`Execute ${label}`}
+              style={key === 'full_pipeline' ? { borderColor: '#3B82F6', fontWeight: 700, color: '#1D4ED8', background: '#EFF6FF' } : {}}
             >
               {label}
             </button>
@@ -148,10 +172,9 @@ export function AiActivityFeed() {
             <div className="ai-feed-empty-icon">
               <SparklesIcon size={22} />
             </div>
-            <p className="ai-feed-empty-title">AI Intelligence Engine Ready</p>
+            <p className="ai-feed-empty-title">Deterministic Intelligence Engine Active</p>
             <p className="ai-feed-empty-sub">
-              Trigger an operation above to see the AI activity timeline. In production,
-              these events stream live from the AI analysis API.
+              Click <strong>"⚡ Run Full Intelligence Pipeline"</strong> above to observe the 10-stage analysis process across duplicates, prices, vendor risks, and savings opportunities.
             </p>
           </div>
         ) : (
@@ -198,9 +221,7 @@ export function AiActivityFeed() {
       <div className="ai-feed-footer-note">
         <CheckCircleIcon size={12} />
         <span>
-          Events are currently simulated. Replace{' '}
-          <code>simulateAiActivity()</code> in{' '}
-          <code>aiActivityService.js</code> with SSE/WebSocket to connect the real AI API.
+          UI represents the 10-stage intelligence pipeline. When an external model/API is connected in <code>aiService.js</code>, this stream binds to live SSE/WebSocket events.
         </span>
       </div>
     </div>
