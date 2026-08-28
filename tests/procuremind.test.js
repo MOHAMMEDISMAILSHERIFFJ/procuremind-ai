@@ -370,6 +370,111 @@ async function runAllTests() {
   resetAgentState();
   assert(getAgentCurrentState().state === AGENT_STATES.IDLE, 'Agent resets cleanly to IDLE state');
 
+  // ── 11. Vendor Composite Scoring & Empirical Reliability Tests ─────────────
+  console.log('\n11. Vendor Composite Scoring & Insufficient Data Tests:');
+  const { calculateVendorScore } = await import('../src/services/intelligenceService.js');
+
+  const vendorHighPerf = {
+    id: 'VND-001',
+    name: 'CompEdge Global',
+    performanceScore: 92,
+    compliance: '98%',
+    rating: 4.8,
+    pricingTrendDir: 'stable',
+    riskLevel: 1,
+    riskVariant: 'approved',
+    totalSpend: 2500000,
+  };
+  const scoreHigh = calculateVendorScore(vendorHighPerf);
+  assert(scoreHigh.score >= 80, `High performance vendor scores Tier-1 grade (${scoreHigh.label}, Grade: ${scoreHigh.grade})`);
+  assert(scoreHigh.breakdown.performanceScore === 92, 'Preserves performance component breakdown');
+
+  const vendorRisky = {
+    id: 'VND-002',
+    name: 'Unreliable Supplies',
+    performanceScore: 60,
+    compliance: '75%',
+    rating: 2.5,
+    pricingTrendDir: 'up',
+    riskLevel: 3,
+    riskVariant: 'flagged',
+    totalSpend: 500000,
+  };
+  const scoreRisky = calculateVendorScore(vendorRisky);
+  assert(scoreRisky.score < 60, `Risky vendor receives penalized score (${scoreRisky.label}, Grade: ${scoreRisky.grade})`);
+
+  const vendorEmpty = { id: 'VND-003', name: 'New Unrated Supplier' };
+  const scoreEmpty = calculateVendorScore(vendorEmpty);
+  assert(scoreEmpty.score === null, 'Unrated vendor returns null score');
+  assert(scoreEmpty.label === 'Insufficient data', 'Unrated vendor displays "Insufficient data"');
+
+  // ── 12. 11-Stage Agent Workflow & Explainable Reasoning Schema Tests ───────
+  console.log('\n12. 11-Stage Agent Workflow & Explainable Reasoning Schema Tests:');
+
+  const simMultiLever = generateNegotiationSimulation({
+    item: 'Developer Laptops',
+    vendor: 'CompEdge Global Systems',
+    category: 'IT Hardware',
+    totalAmount: 2000000,
+    historicalBenchmark: 1775000,
+    variancePct: 12.7,
+    quantity: 50,
+  });
+
+  assert(simMultiLever.isSimulated === true, 'Negotiation preview simulation flag is explicitly true');
+  assert(Array.isArray(simMultiLever.leversApplied) && simMultiLever.leversApplied.length >= 3, `Applied ${simMultiLever.leversApplied?.length} multi-levers for IT Hardware`);
+  assert(simMultiLever.leversApplied.includes('Volume Commitment Discount'), 'Selected volume commitment discount lever for 50 units');
+  assert(simMultiLever.leversApplied.includes('3-Year Extended SLA Warranty'), 'Selected 3-Year Extended SLA Warranty lever for IT Hardware');
+  assert(simMultiLever.originalQuote - simMultiLever.potentialSaving === simMultiLever.negotiatedTarget, 'Negotiation invariant: originalQuote - potentialSaving === negotiatedTarget holds');
+
+  // ── 13. Decision Audit Trail Logging Tests ─────────────────────────────────
+  console.log('\n13. Decision Audit Trail Logging Tests:');
+
+  const userGamma = 'usr_gamma_audit';
+  saveUserData(userGamma, createEmptyDataset(userGamma, 'Gamma Corp'));
+
+  const gammaInsight = {
+    id: 'ins_gamma_01',
+    title: 'NEGOTIATE BEFORE APPROVAL: Cloud Compute',
+    description: 'Quotation is 15% above rate card.',
+    recommendation: 'Negotiate volume tier.',
+    financialImpact: 150000,
+    formattedImpact: '₹1.5L',
+    type: 'savings',
+    severity: 'warning',
+    relatedRecords: ['REQ-G1'],
+  };
+
+  createDecisionFromInsight(userGamma, gammaInsight);
+  let gammaData = getCurrentUserData(userGamma);
+  const initialDecision = gammaData.decisions[0];
+
+  assert(Array.isArray(initialDecision.auditTrail) && initialDecision.auditTrail.length === 1, 'Decision initializes with AI_RECOMMENDATION_GENERATED audit log');
+  assert(initialDecision.auditTrail[0].action === 'AI_RECOMMENDATION_GENERATED', 'Audit log records AI generation action');
+
+  // Executive approves
+  updateDecisionStatus(userGamma, initialDecision.id, 'Approved by Executive', {
+    reviewer: 'Chief Procurement Officer',
+    notes: 'Authorized after reviewing SLA terms.',
+    actualSaving: 150000,
+  });
+
+  gammaData = getCurrentUserData(userGamma);
+  const updatedDecision = gammaData.decisions[0];
+
+  assert(updatedDecision.auditTrail.length === 2, 'Decision audit trail records executive action event (2 logs total)');
+  assert(updatedDecision.auditTrail[1].action === 'EXECUTIVE_APPROVED', 'Second audit event records EXECUTIVE_APPROVED');
+  assert(updatedDecision.auditTrail[1].actor === 'Chief Procurement Officer', 'Second audit event records exact reviewer');
+
+  // ── 14. Zero State & Empty Account Invariant Tests ─────────────────────────
+  console.log('\n14. Zero State & Empty Account Invariant Tests:');
+  const { calculateMetrics } = await import('../src/services/dataService.js');
+  const emptyMetrics = calculateMetrics(createEmptyDataset('user_empty_zero', 'Fresh Account'));
+  assert(emptyMetrics.totalSpendValue === 0, 'New empty dataset produces exactly ₹0 total spend');
+  assert(emptyMetrics.pendingDecisionsCount === 0, 'New empty dataset has 0 pending decisions');
+  assert(emptyMetrics.isEmptyState === true, 'New empty dataset flags isEmptyState === true');
+
+
   console.log('\n================================================================');
   console.log(`TOTAL SUITE RESULTS: ${passedCount} PASSED, ${failedCount} FAILED`);
   console.log('================================================================');
@@ -383,3 +488,4 @@ runAllTests().catch((err) => {
   console.error('Test runner exception:', err);
   process.exit(1);
 });
+

@@ -401,6 +401,13 @@ export function updateDecisionStatus(userId, decisionId, newStatus, outcomeData 
     statusVariant = 'warning';
   }
 
+  const auditEvent = {
+    timestamp: new Date().toISOString(),
+    action: statusVariant === 'approved' ? 'EXECUTIVE_APPROVED' : statusVariant === 'danger' ? 'EXECUTIVE_REJECTED' : 'NEGOTIATION_AUTHORIZED',
+    actor: outcomeData.reviewer || 'Executive Reviewer',
+    details: outcomeData.notes || `Decision status transitioned to "${newStatus}"`,
+  };
+
   data.decisions = data.decisions.map((d) => {
     if (d.id === decisionId) {
       return {
@@ -409,10 +416,12 @@ export function updateDecisionStatus(userId, decisionId, newStatus, outcomeData 
         statusVariant,
         resolvedAt: new Date().toISOString(),
         reviewNotes: outcomeData.notes || d.reviewNotes || '',
+        auditTrail: [...(d.auditTrail || []), auditEvent],
       };
     }
     return d;
   });
+
 
   // If approved and has estimated savings, record in Outcomes (Learning Layer)
   if (statusVariant === 'approved') {
@@ -434,14 +443,51 @@ export function updateDecisionStatus(userId, decisionId, newStatus, outcomeData 
     data.outcomes = [outcomeEntry, ...(data.outcomes || []).filter((o) => o.decisionId !== decisionId)];
   }
 
-  // Update linked procurement request if any
+  // Update linked procurement request & issue Purchase Order if approved
   if (targetDecision.relatedReqId) {
-    updateProcurementRequestStatus(userId, targetDecision.relatedReqId, newStatus, statusVariant);
+    const reqId = targetDecision.relatedReqId;
+    const targetReq = (data.procurementRequests || []).find((r) => r.id === reqId) ||
+                      (data.procurements || []).find((r) => r.id === reqId);
+
+    if (targetReq) {
+      data.procurementRequests = (data.procurementRequests || []).map((r) => {
+        if (r.id === reqId) {
+          return { ...r, status: newStatus, statusVariant, lastUpdated: new Date().toISOString() };
+        }
+        return r;
+      });
+
+      data.procurements = (data.procurements || []).map((r) => {
+        if (r.id === reqId) {
+          return { ...r, status: newStatus, statusVariant, lastUpdated: new Date().toISOString() };
+        }
+        return r;
+      });
+
+      if (statusVariant === 'approved' && !data.purchaseOrders.some((po) => po.relatedReqId === reqId)) {
+        const newPO = {
+          id: `PO-${Date.now().toString().slice(-6)}`,
+          relatedReqId: reqId,
+          description: targetReq.item || targetReq.request || 'Procurement Order',
+          vendorName: targetReq.vendor || 'Authorized Supplier',
+          category: targetReq.category || 'General',
+          quantity: targetReq.quantity || 1,
+          totalAmount: targetReq.totalAmount || 0,
+          formattedAmount: targetReq.formattedAmount || _formatCurrency(targetReq.totalAmount || 0),
+          status: 'Issued to Supplier',
+          statusVariant: 'approved',
+          issuedDate: new Date().toISOString().split('T')[0],
+          requiredDate: targetReq.requiredDate || '',
+        };
+        data.purchaseOrders = [newPO, ...data.purchaseOrders];
+      }
+    }
   }
 
   saveUserData(userId, data);
   return data;
 }
+
 
 /**
  * Add a subscription.
@@ -538,6 +584,14 @@ export function createDecisionFromInsight(userId, insight) {
     relatedInsightId: insight.id || null,
     relatedReqId: (insight.relatedRecords && insight.relatedRecords[0]) || null,
     createdAt: new Date().toISOString(),
+    auditTrail: [
+      {
+        timestamp: new Date().toISOString(),
+        action: 'AI_RECOMMENDATION_GENERATED',
+        actor: 'ProcureMind AI Intelligence Engine',
+        details: 'Formal recommendation synthesized and queued for human-in-the-loop executive review.',
+      },
+    ],
   };
 
   data.decisions = [newDecision, ...(data.decisions || [])];

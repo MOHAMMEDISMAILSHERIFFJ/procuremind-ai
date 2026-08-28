@@ -35,10 +35,13 @@ import { analyzeProcurementRequest } from './aiService.js';
 export const AGENT_STATES = {
   IDLE:                   'idle',
   INGESTING:              'ingesting',
-  ANALYZING:              'analyzing',
+  STRUCTURING:            'structuring',
+  HISTORY_CHECK:          'history_check',
   BENCHMARKING:           'benchmarking',
   VENDOR_INTELLIGENCE:    'vendor_intelligence',
   RISK_ANALYSIS:          'risk_analysis',
+  SAVINGS_ANALYSIS:       'savings_analysis',
+  STRATEGY_SYNTHESIS:     'strategy_synthesis',
   NEGOTIATING:            'negotiating',
   RECOMMENDATION_READY:   'recommendation_ready',
   DECISION_CREATED:       'decision_created',
@@ -55,7 +58,7 @@ const _agentListeners = new Set();
 let _currentState = {
   state: AGENT_STATES.IDLE,
   stepIndex: 0,
-  totalSteps: 9,
+  totalSteps: 11,
   message: 'ProcureMind Agent is ready',
   progress: 0,
   steps: [],
@@ -249,16 +252,17 @@ export function parseProcurementIntent(prompt, userData = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Autonomous Vendor Negotiation Strategy & Dialogue Simulator
+// Autonomous Vendor Negotiation Strategy & Multi-Lever Simulator
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Generates an autonomous negotiation strategy and simulated dialogue.
- * Safe simulation for the hackathon demo — clearly labelled as a preview.
+ * Generates a dynamic multi-lever negotiation strategy and simulated dialogue.
+ * Tailors negotiation levers (price, volume, payment terms, warranty, SLA) to the requisition.
  */
 export function generateNegotiationSimulation({
   item,
   vendor,
+  category,
   totalAmount,
   historicalBenchmark,
   variancePct,
@@ -274,29 +278,40 @@ export function generateNegotiationSimulation({
   const formattedTarget = customCounterOffer || `₹${(targetPrice / 100000).toFixed(2)}L`;
   const potentialSaving = Math.max(0, totalAmount - targetPrice);
 
+  // Determine dynamic negotiation levers based on category & variance
+  const leversApplied = [];
+  if (quantity >= 10 || totalAmount >= 500000) leversApplied.push('Volume Commitment Discount');
+  if (isMarkup) leversApplied.push('Historical Benchmark Indexing');
+  leversApplied.push('Net-30 Payment Terms');
+  if ((category || '').toLowerCase().includes('hardware') || (category || '').toLowerCase().includes('equipment') || (category || '').toLowerCase().includes('it')) {
+    leversApplied.push('3-Year Extended SLA Warranty');
+  } else if ((category || '').toLowerCase().includes('software') || (category || '').toLowerCase().includes('cloud')) {
+    leversApplied.push('Service Credits for Uptime & Onboarding Support');
+  }
+
   const dialogue = [
     {
       round: 1,
       sender: 'ProcureMind Agent',
-      message: `Based on the historical price benchmark of ₹${(historicalBenchmark / 100000).toFixed(2)}L for ${item} and our commitment volume of ${quantity} units, we propose a revised rate card of ${formattedTarget}.`,
+      message: `Based on our historical rate benchmark of ₹${(historicalBenchmark / 100000).toFixed(2)}L for ${item} and our volume commitment of ${quantity} units, we propose a rate card target of ${formattedTarget}.`,
       timestamp: '00:01',
     },
     {
       round: 2,
       sender: `${vendor} (Supplier)`,
-      message: `We have reviewed the volume commitment. While standard rate is ₹${(totalAmount / 100000).toFixed(2)}L, we can offer an initial revision to ₹${((targetPrice * 1.03) / 100000).toFixed(2)}L.`,
+      message: `We have evaluated your order volume (${quantity} units). While standard catalog quotation is ₹${(totalAmount / 100000).toFixed(2)}L, we can offer an initial concession at ₹${((targetPrice * 1.03) / 100000).toFixed(2)}L.`,
       timestamp: '00:02',
     },
     {
       round: 3,
       sender: 'ProcureMind Agent',
-      message: `We can confirm immediate purchase order approval if rate is finalized at ${formattedTarget} with standard 30-day payment terms and enterprise SLA warranty.`,
+      message: `We can confirm immediate purchase order authorization if rate is finalized at ${formattedTarget} with Net-30 payment terms and 3-year enterprise replacement SLA warranty.`,
       timestamp: '00:03',
     },
     {
       round: 4,
       sender: `${vendor} (Supplier)`,
-      message: `Counter-offer accepted at ${formattedTarget} with 30-day payment terms and 3-year warranty included. Revised quotation issued.`,
+      message: `Counter-offer accepted at ${formattedTarget}. Terms confirmed: Net-30 payment schedule, 3-year warranty, and priority SLA delivery. Revised invoice issued.`,
       timestamp: '00:04',
     },
   ];
@@ -304,10 +319,10 @@ export function generateNegotiationSimulation({
   const strategyPoints = Array.isArray(customStrategyPoints) && customStrategyPoints.length > 0
     ? customStrategyPoints
     : [
-        `Reference historical benchmark rate card (₹${(historicalBenchmark / 100000).toFixed(2)}L baseline)`,
-        `Leverage consolidated order volume (${quantity} units) for Tier-1 discount`,
-        `Demand Net-30 payment terms without upfront deposit penalty`,
-        `Ensure 3-year replacement warranty & 24/7 SLA coverage clause`,
+        `Historical rate benchmark baseline: ₹${(historicalBenchmark / 100000).toFixed(2)}L`,
+        `Consolidated order volume (${quantity} units) leverages Tier-1 enterprise pricing`,
+        `Standard Net-30 payment terms without upfront deposit surcharge`,
+        `Mandatory 3-year SLA replacement warranty and service credit penalties for delivery delays`,
       ];
 
   return {
@@ -321,14 +336,15 @@ export function generateNegotiationSimulation({
     formattedSaving: `₹${(potentialSaving / 100000).toFixed(2)}L`,
     discountPercentage: isMarkup ? variancePct : 5.0,
     strategyPoints,
+    leversApplied,
     dialogue,
     status: 'Recommended for Executive Approval',
-    termsAgreed: 'Net-30 Days, 3-Year Enterprise SLA Warranty',
+    termsAgreed: 'Net-30 Days, 3-Year Enterprise SLA Warranty, Volume Tier-1 Discount',
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Autonomous Multi-Stage Workflow Executor
+// Autonomous 11-Stage Multi-Stage Workflow Executor
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -360,9 +376,9 @@ export async function executeAutonomousAgent(prompt, options = {}) {
   _emitAgentState({
     state: AGENT_STATES.INGESTING,
     stepIndex: 0,
-    totalSteps: 9,
+    totalSteps: 11,
     progress: 5,
-    message: 'Ingesting & understanding your procurement request...',
+    message: 'Stage 01: Ingesting & understanding procurement requirement...',
     steps: stepLog,
     recommendation: null,
     negotiationSimulation: null,
@@ -370,71 +386,65 @@ export async function executeAutonomousAgent(prompt, options = {}) {
   });
 
   try {
-    // ── STAGE 1: Requirement Identification (~650ms) ─────────────────────
-    await _delay(600);
+    // ── STAGE 01: Requirement Identification & NLP Parsing (~500ms) ────────
+    await _delay(500);
     const parsedReq = parseProcurementIntent(cleanPrompt, currentData);
     stepLog.push({
       id: 'step_1',
-      title: 'Requirement Identified',
-      detail: `${parsedReq.item} for ${parsedReq.department} (Category: ${parsedReq.category}, Urgency: ${parsedReq.urgency})`,
+      stepNumber: '01',
+      title: 'Requirement Identified & Parsed',
+      detail: `Extracted: ${parsedReq.item} (${parsedReq.quantity} units, Urgency: ${parsedReq.urgency})`,
       status: 'complete',
     });
     _emitAgentState({
-      state: AGENT_STATES.ANALYZING,
+      state: AGENT_STATES.STRUCTURING,
       stepIndex: 1,
-      progress: 15,
-      message: 'Inspecting procurement history records...',
+      progress: 12,
+      message: 'Stage 02: Structuring request & routing to department...',
       steps: [...stepLog],
     });
 
-    // ── STAGE 2: Procurement History Inspection (~700ms) ──────────────────
-    await _delay(650);
+    // ── STAGE 02: Request Structuring & Department Routing (~450ms) ────────
+    await _delay(450);
+    stepLog.push({
+      id: 'step_2',
+      stepNumber: '02',
+      title: 'Request Structured & Routed',
+      detail: `Assigned Category: ${parsedReq.category} | Department: ${parsedReq.department}`,
+      status: 'complete',
+    });
+    _emitAgentState({
+      state: AGENT_STATES.HISTORY_CHECK,
+      stepIndex: 2,
+      progress: 22,
+      message: 'Stage 03: Inspecting historical procurement ledger...',
+      steps: [...stepLog],
+    });
+
+    // ── STAGE 03: Procurement History Inspection (~500ms) ──────────────────
+    await _delay(500);
     const existingOrders = (currentData.procurementRequests || currentData.procurements || []).filter(
       (p) => (p.category || '').toLowerCase() === parsedReq.category.toLowerCase()
     );
     stepLog.push({
-      id: 'step_2',
-      title: 'Procurement History Checked',
-      detail: existingOrders.length > 0
-        ? `Found ${existingOrders.length} historical requisition(s) in ${parsedReq.category} category`
-        : 'No historical procurement data available (Baseline requisition established)',
-      status: 'complete',
-    });
-    _emitAgentState({
-      state: AGENT_STATES.VENDOR_INTELLIGENCE,
-      stepIndex: 2,
-      progress: 28,
-      message: `Analyzing supply base & vendor intelligence for ${parsedReq.vendor}...`,
-      steps: [...stepLog],
-    });
-
-    // ── STAGE 3: Vendor Intelligence & SLA Compliance (~750ms) ────────────
-    await _delay(700);
-    const existingVendors = currentData.vendors || [];
-    const matchedVendor = existingVendors.find(
-      (v) => (v.name || '').toLowerCase() === parsedReq.vendor.toLowerCase()
-    );
-
-    stepLog.push({
       id: 'step_3',
-      title: 'Vendor Intelligence Analyzed',
-      detail: matchedVendor
-        ? `Registered Supplier: ${matchedVendor.name} (Compliance: ${matchedVendor.compliance || '94%'}, Rating: ${matchedVendor.rating || 4.2}/5.0)`
-        : existingVendors.length > 0
-        ? `Category Supplier: ${parsedReq.vendor} (Cross-matched from active vendor database)`
-        : `No registered vendors available — Initiating market benchmark sourcing for ${parsedReq.vendor}`,
+      stepNumber: '03',
+      title: 'Procurement History Inspected',
+      detail: existingOrders.length > 0
+        ? `Audited ${existingOrders.length} historical purchase records in ${parsedReq.category}`
+        : 'Baseline requisition established (No conflicting purchase history)',
       status: 'complete',
     });
     _emitAgentState({
       state: AGENT_STATES.BENCHMARKING,
       stepIndex: 3,
-      progress: 42,
-      message: 'Computing price variance against historical benchmarks...',
+      progress: 32,
+      message: 'Stage 04: Computing price benchmarks & historical baseline...',
       steps: [...stepLog],
     });
 
-    // ── STAGE 4: Market / Price Benchmarking (~750ms) ─────────────────────
-    await _delay(700);
+    // ── STAGE 04: Price Benchmarking & Baseline Calculation (~500ms) ───────
+    await _delay(500);
     const priceVariance = parsedReq.totalAmount - parsedReq.historicalBenchmark;
     const variancePct = parsedReq.historicalBenchmark > 0
       ? Number(((priceVariance / parsedReq.historicalBenchmark) * 100).toFixed(1))
@@ -442,75 +452,103 @@ export async function executeAutonomousAgent(prompt, options = {}) {
 
     stepLog.push({
       id: 'step_4',
-      title: 'Price Benchmark Evaluated',
+      stepNumber: '04',
+      title: 'Price Benchmark Calculated',
       detail: variancePct > 0
-        ? `Quoted price is +${variancePct}% (+₹${(priceVariance / 100000).toFixed(2)}L) above benchmark rate card`
-        : 'Quotation aligns with pre-negotiated benchmark pricing',
+        ? `Quoted price is +${variancePct}% (+₹${(priceVariance / 100000).toFixed(2)}L) above baseline rate card`
+        : 'Quotation complies with historical benchmark rate index',
+      status: 'complete',
+    });
+    _emitAgentState({
+      state: AGENT_STATES.VENDOR_INTELLIGENCE,
+      stepIndex: 4,
+      progress: 42,
+      message: `Stage 05: Evaluating vendor intelligence & SLA for ${parsedReq.vendor}...`,
+      steps: [...stepLog],
+    });
+
+    // ── STAGE 05: Vendor Intelligence & SLA Compliance (~550ms) ───────────
+    await _delay(550);
+    const existingVendors = currentData.vendors || [];
+    const matchedVendor = existingVendors.find(
+      (v) => (v.name || '').toLowerCase() === parsedReq.vendor.toLowerCase()
+    );
+
+    stepLog.push({
+      id: 'step_5',
+      stepNumber: '05',
+      title: 'Vendor Intelligence & SLA Evaluated',
+      detail: matchedVendor
+        ? `Supplier: ${matchedVendor.name} (Compliance: ${matchedVendor.compliance || '94%'}, Rating: ${matchedVendor.rating || 4.2}/5.0, Trend: ${matchedVendor.pricingTrend || 'Stable'})`
+        : `Category Supplier: ${parsedReq.vendor} (Cross-matched against supply base)`,
       status: 'complete',
     });
     _emitAgentState({
       state: AGENT_STATES.RISK_ANALYSIS,
-      stepIndex: 4,
-      progress: 56,
-      message: 'Evaluating risk signals & budget exposure...',
+      stepIndex: 5,
+      progress: 52,
+      message: 'Stage 06: Assessing risk signals & budget exposure...',
       steps: [...stepLog],
     });
 
-    // ── STAGE 5: Risk Evaluation (~700ms) ────────────────────────────────
-    await _delay(650);
+    // ── STAGE 06: Risk Evaluation & Budget Exposure (~500ms) ───────────────
+    await _delay(500);
     let riskLevel = 'LOW';
     let riskReason = 'Quotation is within approved budget and compliant with rate card guidelines.';
 
     if (variancePct >= 10.0) {
       riskLevel = 'HIGH';
-      riskReason = `Quotation of ₹${(parsedReq.totalAmount / 100000).toFixed(1)}L is ${variancePct}% above baseline unit pricing.`;
+      riskReason = `Quotation of ₹${(parsedReq.totalAmount / 100000).toFixed(1)}L is +${variancePct}% above baseline unit pricing.`;
     } else if (variancePct >= 4.0 || matchedVendor?.riskVariant === 'flagged' || matchedVendor?.riskVariant === 'warning') {
       riskLevel = 'MEDIUM';
       riskReason = `Moderate price variance detected compared with prior fiscal rate card.`;
     }
 
     stepLog.push({
-      id: 'step_5',
-      title: 'Risk Signals Evaluated',
-      detail: `${riskLevel} Risk level classified — ${riskReason}`,
+      id: 'step_6',
+      stepNumber: '06',
+      title: 'Risk Signals & Budget Evaluated',
+      detail: `${riskLevel} Risk classified — ${riskReason}`,
       status: 'complete',
     });
     _emitAgentState({
-      state: AGENT_STATES.NEGOTIATING,
-      stepIndex: 5,
-      progress: 70,
-      message: 'Synthesizing AI recommendation & preparing negotiation strategy...',
+      state: AGENT_STATES.SAVINGS_ANALYSIS,
+      stepIndex: 6,
+      progress: 62,
+      message: 'Stage 07: Detecting savings opportunities & rate gaps...',
       steps: [...stepLog],
     });
 
-    // ── STAGE 6: AI Service Integration (~750ms) ─────────────────────────
-    await _delay(700);
+    // ── STAGE 07: Savings Opportunity Detection (~500ms) ───────────────────
+    await _delay(500);
     const aiAnalysisResult = await analyzeProcurementRequest(parsedReq, {
       companyName: currentData.companyName,
       vendors: currentData.vendors,
     });
 
     stepLog.push({
-      id: 'step_6',
-      title: 'Savings Opportunity Detected',
+      id: 'step_7',
+      stepNumber: '07',
+      title: 'Savings Opportunities Detected',
       detail: variancePct > 0
-        ? `Identified potential savings of ₹${(priceVariance / 100000).toFixed(2)}L through target benchmark negotiation`
-        : 'Requisition cost-optimized for current supply tier',
+        ? `Target benchmark negotiation captures ₹${(priceVariance / 100000).toFixed(2)}L potential cost avoidance`
+        : 'Requisition cost is pre-optimized for current supply tier',
       status: 'complete',
     });
     _emitAgentState({
-      state: AGENT_STATES.NEGOTIATING,
-      stepIndex: 6,
-      progress: 82,
-      message: 'Executing autonomous vendor negotiation simulation...',
+      state: AGENT_STATES.STRATEGY_SYNTHESIS,
+      stepIndex: 7,
+      progress: 72,
+      message: 'Stage 08: Synthesizing multi-lever negotiation strategy...',
       steps: [...stepLog],
     });
 
-    // ── STAGE 7: Autonomous Vendor Negotiation Simulation (~800ms) ────────
-    await _delay(750);
+    // ── STAGE 08: Multi-Lever Negotiation Strategy Synthesis (~550ms) ─────
+    await _delay(550);
     const negotiationSim = generateNegotiationSimulation({
       item: parsedReq.item,
       vendor: parsedReq.vendor,
+      category: parsedReq.category,
       totalAmount: parsedReq.totalAmount,
       historicalBenchmark: parsedReq.historicalBenchmark,
       variancePct,
@@ -520,27 +558,62 @@ export async function executeAutonomousAgent(prompt, options = {}) {
     });
 
     stepLog.push({
-      id: 'step_7',
-      title: 'Negotiation Strategy & Simulation Prepared',
-      detail: `Counter-offer target ${negotiationSim.formattedTarget} simulated with ${negotiationSim.formattedSaving} potential saving.`,
+      id: 'step_8',
+      stepNumber: '08',
+      title: 'Multi-Lever Strategy Synthesized',
+      detail: `Prepared ${negotiationSim.leversApplied.length} negotiation levers: ${negotiationSim.leversApplied.join(', ')}`,
+      status: 'complete',
+    });
+    _emitAgentState({
+      state: AGENT_STATES.NEGOTIATING,
+      stepIndex: 8,
+      progress: 82,
+      message: 'Stage 09: Executing autonomous vendor negotiation simulation...',
+      steps: [...stepLog],
+    });
+
+    // ── STAGE 09: Autonomous Vendor Negotiation Simulation (~600ms) ────────
+    await _delay(600);
+    stepLog.push({
+      id: 'step_9',
+      stepNumber: '09',
+      title: 'Vendor Negotiation Simulated (Preview)',
+      detail: `Counter-offer target ${negotiationSim.formattedTarget} simulated with ${negotiationSim.formattedSaving} savings target`,
       status: 'complete',
     });
     _emitAgentState({
       state: AGENT_STATES.RECOMMENDATION_READY,
-      stepIndex: 7,
-      progress: 92,
-      message: 'Generating decision recommendation & updating dashboard...',
+      stepIndex: 9,
+      progress: 90,
+      message: 'Stage 10: Generating explainable recommendation & reasoning...',
       steps: [...stepLog],
     });
 
-    // ── STAGE 8: Commit Storage & Automatic Decision Generation (~600ms) ──
-    await _delay(550);
-
+    // ── STAGE 10: Explainable Recommendation Generation (~500ms) ───────────
+    await _delay(500);
     const potentialSaving = priceVariance > 0 ? priceVariance : Math.max(0, negotiationSim.potentialSaving);
     const recommendationText = aiAnalysisResult.recommendation ||
       (variancePct > 0
         ? `Negotiate with ${parsedReq.vendor} before authorization. Issue counter-offer of ${negotiationSim.formattedTarget} based on historical benchmark.`
         : `Approve requisition — terms and pricing comply with enterprise guidelines.`);
+
+    stepLog.push({
+      id: 'step_10',
+      stepNumber: '10',
+      title: 'Explainable Recommendation Generated',
+      detail: `Action: ${aiAnalysisResult.recommendedAction || 'NEGOTIATE'} | Confidence: ${aiAnalysisResult.confidence || '94%'}`,
+      status: 'complete',
+    });
+    _emitAgentState({
+      state: AGENT_STATES.DECISION_CREATED,
+      stepIndex: 10,
+      progress: 96,
+      message: 'Stage 11: Queuing decision for Human-in-the-Loop review...',
+      steps: [...stepLog],
+    });
+
+    // ── STAGE 11: Decision Queued for Human-in-the-Loop Review (~450ms) ─────
+    await _delay(450);
 
     // 1. Add procurement requisition to current user's isolated data
     const updatedDataWithProc = addProcurementRequest(userId, {
@@ -569,7 +642,7 @@ export async function executeAutonomousAgent(prompt, options = {}) {
       aiNegotiationStrategy: negotiationSim.strategyPoints || [],
     });
 
-    // 2. Automatically create a pending decision record (Deduplicated)
+    // 2. Automatically create a pending decision record for executive review
     let createdDecision = null;
     const latestReq = (updatedDataWithProc.procurementRequests || [])[0];
     if (variancePct > 0 || potentialSaving > 0) {
@@ -592,11 +665,12 @@ export async function executeAutonomousAgent(prompt, options = {}) {
     runIntelligenceAnalysis(updatedDataWithProc);
 
     stepLog.push({
-      id: 'step_8',
-      title: 'Decision Automatically Created',
+      id: 'step_11',
+      stepNumber: '11',
+      title: 'Queued for Human-in-the-Loop Review',
       detail: createdDecision
-        ? `Decision record #${createdDecision.id} logged in Decisions & Outcomes for executive review.`
-        : 'Requisition logged and approved for processing.',
+        ? `Decision record #${createdDecision.id} logged in Decisions module awaiting human executive authorization.`
+        : 'Requisition logged in review queue awaiting authorization.',
       status: 'complete',
     });
 
@@ -622,6 +696,23 @@ export async function executeAutonomousAgent(prompt, options = {}) {
       potentialSavings: potentialSaving,
       formattedSavings: `₹${(potentialSaving / 100000).toFixed(2)}L`,
       recommendation: recommendationText,
+      whyReasoning: {
+        priceVarianceNotice: variancePct > 0
+          ? `Current quote of ₹${(parsedReq.totalAmount / 100000).toFixed(2)}L is +${variancePct}% (+₹${(priceVariance / 100000).toFixed(2)}L) above benchmark rate card.`
+          : 'Quote matches pre-negotiated baseline rate card.',
+        volumeLeverage: `Volume commitment of ${parsedReq.quantity} unit(s) provides Tier-1 enterprise negotiation leverage.`,
+        vendorPerformance: matchedVendor
+          ? `Supplier ${matchedVendor.name} has ${matchedVendor.compliance || '94%'} contract compliance.`
+          : 'Category supplier evaluated against market baseline.',
+        estimatedSavings: `Target negotiation captures ₹${(potentialSaving / 100000).toFixed(2)}L in cost avoidance.`,
+      },
+      evidenceAuditTrail: [
+        `Historical rate card baseline: ₹${(parsedReq.historicalBenchmark / 100000).toFixed(2)}L (Unit: ₹${parsedReq.unitBenchmark.toLocaleString('en-IN')})`,
+        `Current vendor quote: ₹${(parsedReq.totalAmount / 100000).toFixed(2)}L (Unit: ₹${parsedReq.unitPrice.toLocaleString('en-IN')})`,
+        `Department allocation: ${parsedReq.department} (${parsedReq.urgency})`,
+        `Supplier evaluated: "${parsedReq.vendor}"`,
+      ],
+      negotiationLevers: negotiationSim.leversApplied || ['Volume Bracket Discount', 'Net-30 Payment Terms', '3-Year Enterprise Warranty'],
       confidence: aiAnalysisResult.confidence || '94%',
       confidenceScore: aiAnalysisResult.confidenceScore || 0.94,
       apiStatus: aiAnalysisResult.apiStatus,
@@ -634,9 +725,9 @@ export async function executeAutonomousAgent(prompt, options = {}) {
 
     _emitAgentState({
       state: AGENT_STATES.COMPLETED,
-      stepIndex: 8,
+      stepIndex: 11,
       progress: 100,
-      message: 'Analysis & Negotiation Strategy Complete',
+      message: '11-Stage Analysis & Negotiation Complete',
       steps: [...stepLog],
       recommendation: finalRecommendation,
       negotiationSimulation: negotiationSim,
@@ -664,7 +755,7 @@ export function resetAgentState() {
   _emitAgentState({
     state: AGENT_STATES.IDLE,
     stepIndex: 0,
-    totalSteps: 9,
+    totalSteps: 11,
     progress: 0,
     message: 'ProcureMind Agent is ready',
     steps: [],
@@ -673,3 +764,4 @@ export function resetAgentState() {
     activePrompt: '',
   });
 }
+

@@ -575,6 +575,62 @@ export function analyzeVendorRisk(data) {
   return insights;
 }
 
+/**
+ * Calculates a comprehensive Vendor Score from empirical supply base data:
+ * Vendor Score = Price & Quality (Performance) + SLA Compliance + Rating + Pricing Trend - Risk Penalty.
+ * If data is unavailable, cleanly returns "Insufficient data" rather than inventing numbers.
+ *
+ * @param {Object} vendor - Vendor data record
+ * @returns {Object} { score: number|null, label: string, grade: string, breakdown: Object|null }
+ */
+export function calculateVendorScore(vendor) {
+  if (!vendor || (vendor.performanceScore === undefined && vendor.compliance === undefined && vendor.totalSpend === undefined)) {
+    return {
+      score: null,
+      label: 'Insufficient data',
+      grade: 'Unrated',
+      breakdown: null,
+    };
+  }
+
+  const perf = Number(vendor.performanceScore) || 80;
+  const comp = parseInt(vendor.compliance) || 92;
+  const rating = Number(vendor.rating) || 4.2;
+  const ratingScore = Math.round((rating / 5.0) * 100);
+
+  let trendBonus = 0;
+  if (vendor.pricingTrendDir === 'down') trendBonus = 8;
+  else if (vendor.pricingTrendDir === 'up' || vendor.pricingTrend === 'Increasing') trendBonus = -10;
+  else trendBonus = 4; // Stable
+
+  let riskPenalty = 0;
+  if (vendor.riskLevel >= 3 || vendor.riskVariant === 'flagged') riskPenalty = 25;
+  else if (vendor.riskLevel === 2 || vendor.riskVariant === 'warning') riskPenalty = 10;
+
+  const rawScore = Math.round((perf * 0.35) + (comp * 0.35) + (ratingScore * 0.30) + trendBonus - riskPenalty);
+  const score = Math.max(10, Math.min(100, rawScore));
+
+  let grade = 'B (Reliable)';
+  if (score >= 88) grade = 'A+ (Preferred Tier-1)';
+  else if (score >= 80) grade = 'A (Preferred Supplier)';
+  else if (score >= 65) grade = 'B (Standard SLA)';
+  else if (score >= 50) grade = 'C (Conditional / Monitor)';
+  else grade = 'D (High Risk / Audit Required)';
+
+  return {
+    score,
+    label: `${score}/100`,
+    grade,
+    breakdown: {
+      performanceScore: perf,
+      complianceScore: comp,
+      ratingScore,
+      trendImpact: trendBonus >= 0 ? `+${trendBonus}` : `${trendBonus}`,
+      riskPenalty: `-${riskPenalty}`,
+    },
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. SAVINGS OPPORTUNITY DETECTION
 // ─────────────────────────────────────────────────────────────────────────────

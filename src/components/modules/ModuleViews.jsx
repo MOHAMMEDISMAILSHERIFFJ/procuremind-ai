@@ -16,6 +16,7 @@ import {
 import { Badge } from '../common/Badge';
 import { useAuth } from '../../context/useAuth';
 import { searchRecords } from '../../services/dataService';
+import { calculateVendorScore } from '../../services/intelligenceService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers
@@ -949,6 +950,8 @@ export const VendorsModule = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [selectedVendorIds, setSelectedVendorIds] = useState([]);
   const [formData, setFormData] = useState({ name: '', category: '', contactEmail: '', country: 'India' });
 
   const rawVendors = userData?.vendors || [];
@@ -977,10 +980,39 @@ export const VendorsModule = () => {
     setShowModal(false);
   };
 
+  const handleToggleSelectVendor = (id) => {
+    setSelectedVendorIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // Selected vendors for side-by-side comparison
+  const comparedVendors = useMemo(() => {
+    const list = userData?.vendors || [];
+    return list
+      .filter((v) => selectedVendorIds.includes(v.id))
+      .map((v) => ({ ...v, scoreData: calculateVendorScore(v) }));
+  }, [userData?.vendors, selectedVendorIds]);
+
+
+  const bestVendorId = useMemo(() => {
+    if (comparedVendors.length < 2) return null;
+    let highest = -1;
+    let bestId = null;
+    comparedVendors.forEach((v) => {
+      const s = v.scoreData?.score || 0;
+      if (s > highest) {
+        highest = s;
+        bestId = v.id;
+      }
+    });
+    return bestId;
+  }, [comparedVendors]);
+
   return (
     <ModuleContainer
       title="Vendor Intelligence"
-      subtitle="Supplier performance, risk scores, pricing trends and compliance"
+      subtitle="Supplier performance, composite risk scores, pricing trends and compliance"
       icon={<VendorsIcon size={22} />}
       onAddAction={() => setShowModal(true)}
       addLabel="Add Vendor"
@@ -1010,7 +1042,19 @@ export const VendorsModule = () => {
             <option value="flagged">High / Audit Risk</option>
           </select>
 
-          {(searchQuery || categoryFilter !== 'all' || riskFilter !== 'all') && (
+          {selectedVendorIds.length >= 2 && (
+            <button
+              type="button"
+              className="btn-login-submit"
+              style={{ padding: '6px 14px', fontSize: '12px' }}
+              onClick={() => setShowComparisonModal(true)}
+            >
+              <SparklesIcon size={13} />
+              <span>Compare Suppliers ({selectedVendorIds.length})</span>
+            </button>
+          )}
+
+          {(searchQuery || categoryFilter !== 'all' || riskFilter !== 'all' || selectedVendorIds.length > 0) && (
             <button
               type="button"
               className="btn-filter-clear"
@@ -1018,6 +1062,7 @@ export const VendorsModule = () => {
                 setSearchQuery('');
                 setCategoryFilter('all');
                 setRiskFilter('all');
+                setSelectedVendorIds([]);
               }}
             >
               Clear Filters
@@ -1057,55 +1102,227 @@ export const VendorsModule = () => {
               <span className="vendor-summary-stat">
                 <strong>{rawVendors.filter((v) => v.status === 'Preferred').length}</strong> preferred
               </span>
+              {selectedVendorIds.length > 0 && (
+                <span className="vendor-summary-stat" style={{ color: '#2563eb' }}>
+                  <strong>{selectedVendorIds.length}</strong> selected for comparison
+                </span>
+              )}
             </div>
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Vendor</th><th>Category</th><th>Total Spend</th>
-                    <th>Performance</th><th>Risk</th><th>Pricing Trend</th>
-                    <th>Compliance</th><th>Status</th><th>AI Flag</th>
+                    <th style={{ width: 36, textAlign: 'center' }}>Select</th>
+                    <th>Vendor</th>
+                    <th>Category</th>
+                    <th>Vendor Score</th>
+                    <th>Total Spend</th>
+                    <th>Performance</th>
+                    <th>Risk</th>
+                    <th>Pricing Trend</th>
+                    <th>Compliance</th>
+                    <th>Status</th>
+                    <th>AI Flag</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {vendors.map((v) => (
-                    <tr key={v.id}>
-                      <td>
-                        <div className="vendor-name-cell">
-                          <div className="vendor-avatar">{v.name.charAt(0)}</div>
-                          <div>
-                            <p className="table-primary">{v.name}</p>
-                            <p className="table-secondary">{v.contactEmail || '—'}</p>
+                  {vendors.map((v) => {
+                    const vendorScoreObj = calculateVendorScore(v);
+                    const isSelected = selectedVendorIds.includes(v.id);
+                    return (
+                      <tr key={v.id} style={{ backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.04)' : undefined }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectVendor(v.id)}
+                            style={{ cursor: 'pointer' }}
+                            title="Select to compare side-by-side"
+                          />
+                        </td>
+                        <td>
+                          <div className="vendor-name-cell">
+                            <div className="vendor-avatar">{v.name.charAt(0)}</div>
+                            <div>
+                              <p className="table-primary">{v.name}</p>
+                              <p className="table-secondary">{v.contactEmail || '—'}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td><span className="cat-chip">{v.category}</span></td>
-                      <td className="table-amount">{v.formattedSpend || formatCurrency(v.totalSpend)}</td>
-                      <td>
-                        <div className="perf-score-bar">
-                          <div className="perf-bar-fill" style={{ width: `${v.performanceScore || 0}%` }} />
-                          <span className="perf-score-label">{v.performanceScore || 0}%</span>
-                        </div>
-                      </td>
-                      <td><Badge variant={v.riskVariant || 'info'}>{v.riskScore}</Badge></td>
-                      <td>
-                        <span style={{ color: TREND_COLORS[v.pricingTrendDir] || '#94A3B8', fontWeight: 600 }}>
-                          {TREND_ICONS[v.pricingTrendDir] || '→'} {v.pricingTrend || 'Stable'}
-                        </span>
-                      </td>
-                      <td className="table-secondary">{v.compliance || '—'}</td>
-                      <td><Badge variant={v.riskVariant === 'approved' ? 'approved' : v.riskVariant || 'info'}>{v.status}</Badge></td>
-                      <td>
-                        {v.aiFlag && <span className="ai-flag-chip">⚠ {v.aiFlag}</span>}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td><span className="cat-chip">{v.category}</span></td>
+                        <td>
+                          {vendorScoreObj.score !== null ? (
+                            <div>
+                              <div style={{ fontWeight: 800, color: vendorScoreObj.score >= 80 ? '#10B981' : vendorScoreObj.score >= 65 ? '#2563EB' : '#F59E0B' }}>
+                                {vendorScoreObj.label}
+                              </div>
+                              <span style={{ fontSize: 10, color: '#64748B' }}>{vendorScoreObj.grade}</span>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11, color: '#94A3B8', fontStyle: 'italic' }}>Insufficient data</span>
+                          )}
+                        </td>
+                        <td className="table-amount">{v.formattedSpend || formatCurrency(v.totalSpend)}</td>
+                        <td>
+                          <div className="perf-score-bar">
+                            <div className="perf-bar-fill" style={{ width: `${v.performanceScore || 0}%` }} />
+                            <span className="perf-score-label">{v.performanceScore || 0}%</span>
+                          </div>
+                        </td>
+                        <td><Badge variant={v.riskVariant || 'info'}>{v.riskScore}</Badge></td>
+                        <td>
+                          <span style={{ color: TREND_COLORS[v.pricingTrendDir] || '#94A3B8', fontWeight: 600 }}>
+                            {TREND_ICONS[v.pricingTrendDir] || '→'} {v.pricingTrend || 'Stable'}
+                          </span>
+                        </td>
+                        <td className="table-secondary">{v.compliance || '—'}</td>
+                        <td><Badge variant={v.riskVariant === 'approved' ? 'approved' : v.riskVariant || 'info'}>{v.status}</Badge></td>
+                        <td>
+                          {v.aiFlag && <span className="ai-flag-chip">⚠ {v.aiFlag}</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </>
         )}
       </div>
+
+      {/* ── Side-by-Side Vendor Comparison Modal ── */}
+      {showComparisonModal && (
+        <div className="modal-backdrop" onClick={() => setShowComparisonModal(false)}>
+          <div
+            className="modal-card modal-card-analysis"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '850px' }}
+          >
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="insight-card-icon-bubble" style={{ width: 28, height: 28 }}>
+                  <SparklesIcon size={16} />
+                </div>
+                <div>
+                  <h3 className="modal-title" style={{ fontSize: 15, fontWeight: 700 }}>
+                    Side-by-Side Supplier Intelligence Comparison
+                  </h3>
+                  <span style={{ fontSize: 11, color: '#64748B' }}>
+                    Comparing {comparedVendors.length} suppliers based on SLA, empirical performance, and risk ratings
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowComparisonModal(false)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="modal-analysis-body" style={{ overflowX: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${comparedVendors.length}, 1fr)`, gap: 16, minWidth: comparedVendors.length * 220 }}>
+                {comparedVendors.map((v) => {
+                  const isTop = v.id === bestVendorId;
+                  const sc = v.scoreData;
+                  return (
+                    <div
+                      key={v.id}
+                      style={{
+                        background: isTop ? 'rgba(16, 185, 129, 0.04)' : '#f8fafc',
+                        border: isTop ? '2px solid #10B981' : '1px solid #e2e8f0',
+                        borderRadius: 10,
+                        padding: 14,
+                        position: 'relative',
+                      }}
+                    >
+                      {isTop && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: -10,
+                            right: 12,
+                            background: '#10B981',
+                            color: '#ffffff',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: 12,
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          ★ RECOMMENDED SUPPLIER
+                        </div>
+                      )}
+
+                      <div style={{ marginBottom: 12 }}>
+                        <h4 style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{v.name}</h4>
+                        <span className="cat-chip" style={{ fontSize: 10 }}>{v.category}</span>
+                      </div>
+
+                      {/* Score Highlight */}
+                      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', marginBottom: 12 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Composite Score</span>
+                        <div style={{ fontSize: 20, fontWeight: 900, color: sc.score >= 80 ? '#10B981' : sc.score >= 65 ? '#2563EB' : '#F59E0B' }}>
+                          {sc.label}
+                        </div>
+                        <span style={{ fontSize: 11, color: '#64748b' }}>{sc.grade}</span>
+                      </div>
+
+                      {/* Detail Metrics */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>Performance:</span>
+                          <strong>{v.performanceScore || 0}%</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>SLA Compliance:</span>
+                          <strong>{v.compliance || '—'}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>Pricing Trend:</span>
+                          <strong style={{ color: TREND_COLORS[v.pricingTrendDir] || '#94A3B8' }}>
+                            {TREND_ICONS[v.pricingTrendDir] || '→'} {v.pricingTrend || 'Stable'}
+                          </strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>Total Spend:</span>
+                          <strong>{v.formattedSpend || formatCurrency(v.totalSpend)}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>Risk Classification:</span>
+                          <Badge variant={v.riskVariant || 'info'}>{v.riskScore}</Badge>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>Contract Status:</span>
+                          <Badge variant={v.riskVariant === 'approved' ? 'approved' : v.riskVariant || 'info'}>{v.status}</Badge>
+                        </div>
+                      </div>
+
+                      {v.aiFlag && (
+                        <div style={{ marginTop: 10, padding: '6px 8px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, fontSize: 11, color: '#dc2626' }}>
+                          ⚠ {v.aiFlag}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
+              <button
+                type="button"
+                className="btn-login-submit"
+                onClick={() => setShowComparisonModal(false)}
+              >
+                Close Comparison
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
@@ -1150,6 +1367,7 @@ export const VendorsModule = () => {
     </ModuleContainer>
   );
 };
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. Subscriptions Module
@@ -1737,6 +1955,25 @@ export const DecisionsModule = () => {
                     </p>
                   </div>
 
+                  {/* Audit Trail Timeline */}
+                  {Array.isArray(activeDecisionModal.auditTrail) && activeDecisionModal.auditTrail.length > 0 && (
+                    <div className="analysis-section-block" style={{ marginTop: 10 }}>
+                      <span className="analysis-section-label">DECISION AUDIT TRAIL</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                        {activeDecisionModal.auditTrail.map((ev, idx) => (
+                          <div key={idx} style={{ fontSize: 11.5, background: '#ffffff', padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: 10.5 }}>
+                              <strong style={{ color: '#0f172a' }}>{ev.action}</strong>
+                              <span>{new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <div style={{ color: '#334155', marginTop: 2 }}>{ev.details}</div>
+                            <span style={{ fontSize: 10, color: '#94a3b8' }}>Actor: {ev.actor}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="form-group" style={{ marginTop: 12 }}>
                     <label className="form-label">Reviewer Notes (Optional)</label>
                     <textarea
@@ -1747,6 +1984,7 @@ export const DecisionsModule = () => {
                       onChange={(e) => setReviewNotes(e.target.value)}
                     />
                   </div>
+
 
                   <div className="modal-actions" style={{ marginTop: 20 }}>
                     <button
